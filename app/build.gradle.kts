@@ -43,4 +43,20 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // Jetpack Compose
+    implementation("androidx.compose.ui:ui:1.6.0")
+    implementation("androidx.compose.material:material:1.6.0")
+    implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
+    debugImplementation("androidx.compose.ui:ui-tooling:1.6.0")
+
+    // Navigation Compose
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // ConstraintLayout Compose
+    implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
+
+    // Coil
+    implementation("io.coil-kt:coil-compose:2.6.0")
 }
