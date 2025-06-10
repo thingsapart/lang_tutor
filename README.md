@@ -1,2 +1,3 @@
-# lang_tutor
-AI/LLM Language Tutor
+# AI/LLM Language Tutor
+
+An AI/LLM Language Tutor
