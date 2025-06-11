@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    id("com.google.devtools.ksp") version "1.9.22-1.0.17"
 }
 
 android {
@@ -59,4 +60,14 @@ dependencies {
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Jetpack DataStore
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Room
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    // annotationProcessor("androidx.room:room-compiler:$roomVersion") // Replaced by ksp
 }
