@@ -54,11 +54,19 @@ class ChatRepository(
     suspend fun startNewConversation(conversation: ChatConversationEntity) {
         chatDao.insertConversation(conversation) // Save conversation details first
 
-        // Get and save initial AI greeting
-        val initialAiGreetingText = llmService.getInitialGreeting(
-            topic = conversation.topicId ?: "general", // Use topicId or a default
-            targetLanguage = conversation.targetLanguageCode
-        )
+        val initialAiGreetingText: String
+        try {
+            initialAiGreetingText = llmService.getInitialGreeting(
+                topic = conversation.topicId ?: "general",
+                targetLanguage = conversation.targetLanguageCode
+            )
+        } catch (e: Exception) {
+            // Log the exception for debugging
+            // android.util.Log.e("ChatRepository", "Failed to get initial greeting from LLM: ${e.message}", e)
+            // Provide a default greeting
+            initialAiGreetingText = "Welcome! Let's start our conversation about ${conversation.topicId ?: "this topic"}."
+        }
+
         val initialAiMessage = ChatMessageEntity(
             conversationId = conversation.id,
             text = initialAiGreetingText,

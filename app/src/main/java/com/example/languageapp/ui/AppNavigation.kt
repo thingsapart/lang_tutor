@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.languageapp.data.ChatRepository
 import com.example.languageapp.data.UserSettingsRepository
+import com.example.languageapp.llm.MediaPipeLlmService // Added
 import com.example.languageapp.navigation.Screen
 import com.example.languageapp.ui.screens.*
 import kotlinx.coroutines.CoroutineScope
@@ -17,7 +18,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun AppNavigator(
     userSettingsRepository: UserSettingsRepository,
-    chatRepository: ChatRepository // Added ChatRepository
+    chatRepository: ChatRepository, // Added ChatRepository
+    llmService: MediaPipeLlmService // Added
 ) {
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
@@ -95,7 +97,8 @@ fun AppNavigator(
                 languageCode = languageCode,
                 topicId = topicId,
                 chatRepository = chatRepository,
-                userSettingsRepository = userSettingsRepository
+                userSettingsRepository = userSettingsRepository,
+                llmService = llmService // Added
             )
         }
 
@@ -107,7 +110,8 @@ fun AppNavigator(
             ChatScreen(
                 chatId = chatId,
                 chatRepository = chatRepository,
-                userSettingsRepository = userSettingsRepository // Assuming ChatScreen might need this too
+                userSettingsRepository = userSettingsRepository, // Assuming ChatScreen might need this too
+                llmService = llmService // Added
             )
         }
 
