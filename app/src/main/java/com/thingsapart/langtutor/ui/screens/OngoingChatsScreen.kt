@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items // Added import
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
@@ -62,7 +63,7 @@ fun OngoingChatsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    conversations.forEach { conversation ->
+                    items(conversations, key = { it.id }) { conversation -> // Assuming ChatConversationEntity has 'id'
                         ChatListItem(
                             userName = conversation.conversationTitle, // Using conversationTitle for userName
                             lastMessage = conversation.lastMessage ?: "",
@@ -132,7 +133,7 @@ fun OngoingChatsScreenPreview() {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    placeholderChatsPreview.forEach { conversation ->
+                    items(placeholderChatsPreview, key = { it.id }) { conversation -> // Assuming ChatConversationEntity has 'id'
                         ChatListItem(
                             userName = conversation.conversationTitle,
                             lastMessage = conversation.lastMessage ?: "",

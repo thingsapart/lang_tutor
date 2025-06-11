@@ -118,7 +118,7 @@ class MediaPipeLlmService(
         Log.d(TAG, "Generating response for prompt: \"$fullPrompt\" with model ${modelConfig.modelName}")
 
         return callbackFlow {
-            val progressListener = ProgressListener { partialResult, done ->
+            val progressListener = ProgressListener<String> { partialResult, done ->
                 Log.v(TAG, "Partial result: $partialResult, Done: $done")
                 trySend(partialResult)
                 if (done) {

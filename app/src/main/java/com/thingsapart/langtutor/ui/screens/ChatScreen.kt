@@ -3,6 +3,7 @@ package com.thingsapart.langtutor.ui.screens
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items // Ensure this import is present
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -28,8 +29,8 @@ import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
+// Removed: import org.mockito.kotlin.mock
+// Removed: import org.mockito.kotlin.whenever
 import java.util.UUID
 
 @Composable
@@ -151,8 +152,9 @@ fun ChatScreen(
                 // Optionally, save the conversation without the initial AI message,
                 // or wait for LLM to be ready and then trigger.
                 // For now, just log. The user can initiate by sending a message once LLM is ready.
-                 chatDao.insertConversation(newConversation) // Insert basic conversation details
-                 chatDao.updateConversationSummary(newConversation.id, "Conversation created. Waiting for AI.", System.currentTimeMillis())
+                // chatDao.insertConversation(newConversation) // Insert basic conversation details
+                // chatDao.updateConversationSummary(newConversation.id, "Conversation created. Waiting for AI.", System.currentTimeMillis())
+                Log.w("ChatScreen", "TODO: Implement conversation creation via ChatRepository when LLM is not ready.")
             }
         }
     }
@@ -208,7 +210,7 @@ fun ChatScreen(
             reverseLayout = true,
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
         ) {
-            messages.reversed().forEach { message ->
+            items(messages.reversed(), key = { it.id }) { message -> // Assuming ChatMessageEntity has an 'id' field
                 ChatMessageBubble(
                     messageText = message.text,
                     isUserMessage = message.isUserMessage,
@@ -226,12 +228,11 @@ fun ChatScreen(
 @Composable
 fun ChatScreenPreview_ExistingChat() {
     val context = LocalContext.current
-    val mockLlmService: MediaPipeLlmService = mock()
-    whenever(mockLlmService.serviceState).thenReturn(MutableStateFlow(LlmServiceState.Ready))
+    val mockLlmService: MediaPipeLlmService? = null // Replaced mock with null
 
     val dummyRepo = com.thingsapart.langtutor.data.ChatRepository(
         AppDatabase.getInstance(context).chatDao(),
-        mockLlmService // Pass the mocked LlmService
+        mockLlmService // Pass null LlmService
     )
     val dummyUserSettingsRepo = UserSettingsRepository(context)
     LanguageAppTheme {
@@ -239,7 +240,7 @@ fun ChatScreenPreview_ExistingChat() {
             chatId = "previewChatId",
             chatRepository = dummyRepo,
             userSettingsRepository = dummyUserSettingsRepo,
-            llmService = mockLlmService // Pass the mocked LlmService
+            llmService = mockLlmService // Pass null LlmService
         )
     }
 }
@@ -248,8 +249,7 @@ fun ChatScreenPreview_ExistingChat() {
 @Composable
 fun ChatScreenPreview_NewChatFromTopic() {
     val context = LocalContext.current
-    val mockLlmService: MediaPipeLlmService = mock()
-    whenever(mockLlmService.serviceState).thenReturn(MutableStateFlow(LlmServiceState.Ready))
+    val mockLlmService: MediaPipeLlmService? = null // Replaced mock with null
     // Simulate a model that requires download for this preview if needed for dialog testing
     // whenever(mockLlmService.serviceState).thenReturn(MutableStateFlow(LlmServiceState.Downloading(ModelManager.DEFAULT_MODEL, 50f)))
 
@@ -272,4 +272,4 @@ fun ChatScreenPreview_NewChatFromTopic() {
 }
 
 // Dummy DAO for previewing ChatScreen when LLM is not ready
-private val chatDao: ChatDao = mock()
+// private val chatDao: ChatDao = mock() // Removed mock DAO
