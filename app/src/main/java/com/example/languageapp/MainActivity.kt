@@ -11,7 +11,9 @@ import androidx.compose.ui.Modifier
 import com.example.languageapp.data.AppDatabase
 import com.example.languageapp.data.ChatRepository
 import com.example.languageapp.data.UserSettingsRepository
-import com.example.languageapp.ui.AppNavigator
+import com.example.languageapp.llm.MediaPipeLlmService
+import com.example.languageapp.llm.ModelDownloader // Added import
+import com.example.languageapp.ui.AppNavigator // Corrected to AppNavigator based on file
 import com.example.languageapp.ui.theme.LanguageAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -23,7 +25,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         userSettingsRepository = UserSettingsRepository(applicationContext)
         val database = AppDatabase.getInstance(applicationContext)
-        chatRepository = ChatRepository(database.chatDao())
+        val modelDownloader = ModelDownloader() // Added
+        // Initialize LlmService
+        val llmService = MediaPipeLlmService(applicationContext, modelDownloader = modelDownloader) // Modified
+        // Provide LlmService to ChatRepository
+        chatRepository = ChatRepository(database.chatDao(), llmService) // Modified
 
         setContent {
             LanguageAppTheme {
@@ -34,7 +40,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigator(
                         userSettingsRepository = userSettingsRepository,
-                        chatRepository = chatRepository
+                        chatRepository = chatRepository,
+                        llmService = llmService // Added llmService parameter
                     )
                 }
             }
