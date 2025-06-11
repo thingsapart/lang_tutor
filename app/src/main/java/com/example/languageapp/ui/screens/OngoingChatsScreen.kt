@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle;
 import com.example.languageapp.data.ChatRepository
 import com.example.languageapp.data.model.ChatConversationEntity
 import com.example.languageapp.ui.components.ChatListItem
@@ -29,7 +30,7 @@ fun OngoingChatsScreen(
     onChatSelected: (String) -> Unit
 ) {
     val conversationsFlow: Flow<List<ChatConversationEntity>> = chatRepository.getAllConversations()
-    val conversations by conversationsFlow.collectAsState(initial = emptyList())
+    val conversations by conversationsFlow.collectAsStateWithLifecycle(initialValue = emptyList())
 
     Scaffold(
         topBar = {

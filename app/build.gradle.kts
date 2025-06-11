@@ -48,7 +48,10 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
+    // Lifecycle Compose for collectAsStateWithLifecycle
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
     // TensorFlow Lite
     implementation("org.tensorflow:tensorflow-lite:2.9.0")
@@ -57,6 +60,7 @@ dependencies {
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.6.0")
     implementation("androidx.compose.material:material:1.6.0")
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.0")
