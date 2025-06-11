@@ -1,6 +1,5 @@
 package com.thingsapart.langtutor.data
 
-import com.example.languageapp.data.ChatRepository // Actual class location
 import com.example.languageapp.data.dao.ChatDao
 import com.example.languageapp.data.model.ChatConversationEntity
 import com.example.languageapp.data.model.ChatMessageEntity
@@ -18,7 +17,7 @@ class ChatRepositoryTest {
 
     private lateinit var chatDao: ChatDao
     private lateinit var llmService: LlmService
-    private lateinit var chatRepository: ChatRepository
+    private lateinit var chatRepository: com.thingsapart.langtutor.data.ChatRepository
 
     private val testConversationId = "testConvId"
     private val testTargetLanguage = "es"
@@ -28,7 +27,7 @@ class ChatRepositoryTest {
     fun setUp() {
         chatDao = mock()
         llmService = mock()
-        chatRepository = ChatRepository(chatDao, llmService)
+        chatRepository = com.thingsapart.langtutor.data.ChatRepository(chatDao, llmService)
     }
 
     @Test
