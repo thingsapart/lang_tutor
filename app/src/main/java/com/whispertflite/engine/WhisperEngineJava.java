@@ -85,7 +85,31 @@ public class WhisperEngineJava implements WhisperEngine {
 
     @Override
     public String transcribeBuffer(float[] samples) {
-        return null;
+        if (samples == null || samples.length == 0) {
+            Log.e(TAG, "Input samples are null or empty for transcribeBuffer.");
+            return ""; // Or handle error appropriately
+        }
+
+        // Adapt samples to the fixed input size expected by the model/spectrogram utility
+        // This logic is similar to what's in getMelSpectrogram(String wavePath)
+        int fixedInputSize = WhisperUtil.WHISPER_SAMPLE_RATE * WhisperUtil.WHISPER_CHUNK_SIZE;
+        float[] inputSamples = new float[fixedInputSize];
+        int copyLength = Math.min(samples.length, fixedInputSize);
+        System.arraycopy(samples, 0, inputSamples, 0, copyLength);
+        // If samples.length < fixedInputSize, the rest of inputSamples will be zeros, which is a common way to pad.
+
+        Log.d(TAG, "Calculating Mel spectrogram for buffer...");
+        // Generate Mel spectrogram from the (potentially padded/truncated) samples
+        // Ensure WhisperUtil is accessible (it's a member mWhisperUtil)
+        int cores = Runtime.getRuntime().availableProcessors();
+        float[] melSpectrogram = mWhisperUtil.getMelSpectrogram(inputSamples, inputSamples.length, cores);
+        Log.d(TAG, "Mel spectrogram for buffer is calculated...!");
+
+        // Perform inference using the existing runInference method
+        String result = runInference(melSpectrogram);
+        Log.d(TAG, "Inference for buffer is executed...!");
+
+        return result;
     }
 
     // Load TFLite model

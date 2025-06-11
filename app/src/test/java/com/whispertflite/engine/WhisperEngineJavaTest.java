@@ -194,4 +194,113 @@ public class WhisperEngineJavaTest {
         }
         assertFalse("mIsInitialized should remain false", whisperEngineJava.isInitialized());
     }
+
+    // --- Tests for transcribeBuffer ---
+
+    @Test
+    public void transcribeBuffer_withNullSamples_returnsEmptyString() {
+        // No initialization needed for this specific path
+        whisperEngineJava = new WhisperEngineJava(mockContext);
+        String result = whisperEngineJava.transcribeBuffer(null);
+        assertEquals("Result should be empty string for null samples", "", result);
+    }
+
+    @Test
+    public void transcribeBuffer_withEmptySamples_returnsEmptyString() {
+        // No initialization needed for this specific path
+        whisperEngineJava = new WhisperEngineJava(mockContext);
+        String result = whisperEngineJava.transcribeBuffer(new float[0]);
+        assertEquals("Result should be empty string for empty samples", "", result);
+    }
+
+    @Test
+    public void transcribeBuffer_withValidSamples_processesCorrectly() throws IOException {
+        // Arrange: Need to initialize the engine to get mInterpreter and mWhisperUtil mocked via construction.
+        String modelPath = "dummy_model.tflite";
+        String vocabPath = "dummy_vocab.bin";
+
+        float[] inputSamples = new float[16000]; // 1 second
+        java.util.Arrays.fill(inputSamples, 0.1f);
+
+        // These will be the instances created by 'new' inside WhisperEngineJava
+        final WhisperUtil[] constructedWhisperUtil = new WhisperUtil[1];
+        final Interpreter[] constructedInterpreter = new Interpreter[1];
+
+        try (MockedConstruction<WhisperUtil> mockedWhisperUtilConstruction = Mockito.mockConstruction(WhisperUtil.class,
+                (mock, context) -> {
+                    constructedWhisperUtil[0] = mock; // Capture the mock instance
+                    // Define behavior for getMelSpectrogram
+                    float[] dummyMelSpectrogram = new float[com.whispertflite.utils.WhisperUtil.WHISPER_N_MEL * 100]; // Dummy mel data
+                    when(mock.getMelSpectrogram(any(float[].class),
+                                                eq(com.whispertflite.utils.WhisperUtil.WHISPER_SAMPLE_RATE * com.whispertflite.utils.WhisperUtil.WHISPER_CHUNK_SIZE),
+                                                anyInt()))
+                        .thenReturn(dummyMelSpectrogram);
+
+                    // Define behavior for token translations
+                    when(mock.getTokenEOT()).thenReturn(50256); // Example EOT token
+                    when(mock.getWordFromToken(1)).thenReturn("hello");
+                    when(mock.getWordFromToken(2)).thenReturn("world");
+                    when(mock.loadFiltersAndVocab(anyBoolean(), eq(vocabPath))).thenReturn(true); // For initialization
+                });
+            MockedConstruction<Interpreter.Options> mockedOptionsConstruction = Mockito.mockConstruction(Interpreter.Options.class);
+            MockedConstruction<FileInputStream> mockedFISConstruction = Mockito.mockConstruction(FileInputStream.class,
+                (mock, context) -> {
+                    FileChannel mockFileChannel = mock(FileChannel.class);
+                    when(mockFileChannel.map(any(FileChannel.MapMode.class), anyLong(), anyLong())).thenReturn(mock(ByteBuffer.class));
+                    when(mock.getChannel()).thenReturn(mockFileChannel);
+                });
+            MockedConstruction<Interpreter> mockedInterpreterConstruction = Mockito.mockConstruction(Interpreter.class,
+                (mock, context) -> {
+                    constructedInterpreter[0] = mock; // Capture the mock instance
+                    // Define behavior for mInterpreter.run(...)
+                    doAnswer(invocation -> {
+                        ByteBuffer outputBB = invocation.getArgument(1); // The output buffer from runInference
+                        outputBB.clear();
+                        outputBB.putFloat(1.0f); // token 1 -> "hello"
+                        outputBB.putFloat(2.0f); // token 2 -> "world"
+                        outputBB.putFloat((float) 50256); // EOT token
+                        outputBB.rewind();
+                        return null;
+                    }).when(mock).run(any(ByteBuffer.class), any(ByteBuffer.class));
+
+                    // Mock tensor behavior if needed for initialization or other parts of runInference
+                    Tensor mockInputTensor = mock(Tensor.class);
+                    when(mockInputTensor.shape()).thenReturn(new int[]{1, 80, 3000}); // Example shape
+                    when(mockInputTensor.dataType()).thenReturn(org.tensorflow.lite.DataType.FLOAT32);
+                    when(mock.getInputTensor(0)).thenReturn(mockInputTensor);
+
+                    Tensor mockOutputTensor = mock(Tensor.class);
+                    when(mockOutputTensor.shape()).thenReturn(new int[]{1, 100}); // Example output shape
+                    when(mock.getOutputTensor(0)).thenReturn(mockOutputTensor);
+
+                })) {
+
+            whisperEngineJava = new WhisperEngineJava(mockContext);
+            whisperEngineJava.initialize(modelPath, vocabPath, false); // Initialize to set up mocks
+
+            // Act
+            String result = whisperEngineJava.transcribeBuffer(inputSamples);
+
+            // Assert
+            assertEquals("Transcription result is not as expected", "helloworld", result);
+
+            // Verify getMelSpectrogram was called correctly
+            ArgumentCaptor<float[]> samplesCaptor = ArgumentCaptor.forClass(float[].class);
+            verify(constructedWhisperUtil[0]).getMelSpectrogram(
+                    samplesCaptor.capture(),
+                    eq(com.whispertflite.utils.WhisperUtil.WHISPER_SAMPLE_RATE * com.whispertflite.utils.WhisperUtil.WHISPER_CHUNK_SIZE),
+                    anyInt());
+
+            // Check that the captured samples have the expected length (fixedInputSize)
+            assertEquals(com.whispertflite.utils.WhisperUtil.WHISPER_SAMPLE_RATE * com.whispertflite.utils.WhisperUtil.WHISPER_CHUNK_SIZE,
+                         samplesCaptor.getValue().length);
+            // Check if the beginning of the captured samples matches inputSamples
+            for(int i=0; i < inputSamples.length; i++) {
+                assertEquals(inputSamples[i], samplesCaptor.getValue()[i], 0.001f);
+            }
+
+            // Verify interpreter run was called (implicitly done by checking the result, but can be explicit)
+            verify(constructedInterpreter[0]).run(any(ByteBuffer.class), any(ByteBuffer.class));
+        }
+    }
 }

@@ -157,22 +157,91 @@ public class WhisperTest {
 
 
     @Test
-    public void writeBuffer_liveTranscription_callsTranscribeBuffer() throws InterruptedException {
+    public void writeBuffer_singleCall_engineReceivesSamplesAndListenerGetsResult() throws InterruptedException {
         float[] dummySamples = new float[]{0.1f, 0.2f};
-        // No specific file path needed for buffer transcription usually
+        String expectedResult = "live transcription result";
 
-        final CountDownLatch latch = new CountDownLatch(1);
+        Whisper.WhisperListener mockListener = mock(Whisper.WhisperListener.class);
+        whisper.setListener(mockListener);
+
+        final CountDownLatch engineCallLatch = new CountDownLatch(1);
+        final CountDownLatch listenerCallLatch = new CountDownLatch(1);
+
         when(mockWhisperEngine.transcribeBuffer(dummySamples)).thenAnswer(invocation -> {
-            latch.countDown();
-            return "live result";
+            engineCallLatch.countDown();
+            return expectedResult;
         });
 
-        whisper.writeBuffer(dummySamples); // Adds to queue and notifies the buffer thread
+        doAnswer(invocation -> {
+            listenerCallLatch.countDown();
+            return null;
+        }).when(mockListener).onResultReceived(expectedResult);
 
-        boolean called = latch.await(5, TimeUnit.SECONDS);
+        whisper.writeBuffer(dummySamples);
 
-        assertTrue("transcribeBuffer should have been called by the live thread", called);
+        boolean engineCalled = engineCallLatch.await(5, TimeUnit.SECONDS);
+        assertTrue("WhisperEngine.transcribeBuffer should have been called", engineCalled);
         verify(mockWhisperEngine).transcribeBuffer(dummySamples);
+
+        boolean listenerCalled = listenerCallLatch.await(5, TimeUnit.SECONDS);
+        assertTrue("WhisperListener.onResultReceived should have been called", listenerCalled);
+        verify(mockListener).onResultReceived(expectedResult);
+    }
+
+    @Test
+    public void writeBuffer_multipleCalls_processesAllBuffersAndNotifiesListener() throws InterruptedException {
+        float[] samples1 = new float[]{0.1f, 0.2f};
+        String result1 = "result one";
+        float[] samples2 = new float[]{0.3f, 0.4f};
+        String result2 = "result two";
+
+        Whisper.WhisperListener mockListener = mock(Whisper.WhisperListener.class);
+        whisper.setListener(mockListener);
+
+        // For verifying engine calls and listener calls for two separate buffers
+        final CountDownLatch engineLatch = new CountDownLatch(2);
+        final CountDownLatch listenerLatch = new CountDownLatch(2);
+
+        // Setup mockWhisperEngine behavior for two different inputs
+        when(mockWhisperEngine.transcribeBuffer(samples1)).thenAnswer(invocation -> {
+            engineLatch.countDown();
+            return result1;
+        });
+        when(mockWhisperEngine.transcribeBuffer(samples2)).thenAnswer(invocation -> {
+            engineLatch.countDown();
+            return result2;
+        });
+
+        // Setup listener mock to count down when onResultReceived is called
+        doAnswer(invocation -> {
+            listenerLatch.countDown();
+            return null;
+        }).when(mockListener).onResultReceived(anyString());
+
+        // Act: Write two buffers
+        whisper.writeBuffer(samples1);
+        // Adding a small delay to ensure the first buffer is likely picked up before the second,
+        // although the internal queue and thread should handle this.
+        Thread.sleep(100);
+        whisper.writeBuffer(samples2);
+
+        // Assert: Wait for both engine calls and both listener calls
+        boolean allEngineCallsMade = engineLatch.await(10, TimeUnit.SECONDS);
+        assertTrue("WhisperEngine.transcribeBuffer should have been called for both samples", allEngineCallsMade);
+
+        boolean allListenerCallsMade = listenerLatch.await(10, TimeUnit.SECONDS);
+        assertTrue("WhisperListener.onResultReceived should have been called for both results", allListenerCallsMade);
+
+        // Verify the exact calls and their order if necessary
+        verify(mockWhisperEngine).transcribeBuffer(samples1);
+        verify(mockWhisperEngine).transcribeBuffer(samples2);
+
+        ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
+        verify(mockListener, times(2)).onResultReceived(resultCaptor.capture());
+
+        java.util.List<String> capturedResults = resultCaptor.getAllValues();
+        assertTrue("Listener should have received result1", capturedResults.contains(result1));
+        assertTrue("Listener should have received result2", capturedResults.contains(result2));
     }
 
     // Note: Testing threads can be complex. CountDownLatch is a common way.
