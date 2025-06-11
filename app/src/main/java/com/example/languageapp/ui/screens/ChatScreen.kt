@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.languageapp.data.AppDatabase;
 import com.example.languageapp.data.ChatRepository
 import com.example.languageapp.data.UserSettingsRepository
 import com.example.languageapp.data.model.ChatConversationEntity
