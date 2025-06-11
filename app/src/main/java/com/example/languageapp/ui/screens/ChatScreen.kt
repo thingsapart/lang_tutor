@@ -14,24 +14,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.languageapp.data.AppDatabase;
+import com.example.languageapp.data.AppDatabase // Keep for Preview
 import com.example.languageapp.data.ChatRepository
 import com.example.languageapp.data.UserSettingsRepository
 import com.example.languageapp.data.model.ChatConversationEntity
 import com.example.languageapp.data.model.ChatMessageEntity
+import com.example.languageapp.llm.GemmaLlmService // Keep for Preview
 import com.example.languageapp.ui.components.ChatMessageBubble
 import com.example.languageapp.ui.theme.LanguageAppTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
-// Removed local data class Message, will use ChatMessageEntity
-
 @Composable
 fun ChatScreen(
-    chatId: String?, // Can be null for a new chat started from topic selection
-    languageCode: String? = null, // Passed when starting new chat from topic
-    topicId: String? = null, // Passed when starting new chat from topic
+    chatId: String?,
+    languageCode: String? = null,
+    topicId: String? = null,
     chatRepository: ChatRepository,
     userSettingsRepository: UserSettingsRepository // Assuming it might be needed for user info
 ) {
@@ -40,11 +39,10 @@ fun ChatScreen(
     var currentChatId by remember { mutableStateOf(chatId) }
     var conversationTitle by remember { mutableStateOf("Chat") }
 
-    // Load messages if chatId is available, otherwise, it's a new chat or needs initialization
     val messagesFlow: Flow<List<ChatMessageEntity>> = remember(currentChatId) {
         currentChatId?.let {
             chatRepository.getMessagesForConversation(it)
-        } ?: kotlinx.coroutines.flow.flowOf(emptyList()) // Empty flow if no chatId yet
+        } ?: kotlinx.coroutines.flow.flowOf(emptyList())
     }
     val messages by messagesFlow.collectAsState(initial = emptyList())
 
@@ -53,39 +51,34 @@ fun ChatScreen(
     LaunchedEffect(key1 = chatId, key2 = languageCode, key3 = topicId) {
         if (chatId != null) {
             currentChatId = chatId
-            // Fetch conversation title if needed, for now, use chatId or a default
-            // Example: conversationTitle = chatRepository.getConversationDetails(chatId)?.conversationTitle ?: "Chat"
+            // TODO: Fetch actual conversation title from repository
+            // conversationTitle = chatRepository.getConversationDetails(chatId)?.conversationTitle ?: "Chat"
             conversationTitle = "Chat with Buddy" // Placeholder
         } else if (languageCode != null && topicId != null) {
-            // This is a new chat initiated from topic selection
             val newConversationId = UUID.randomUUID().toString()
             currentChatId = newConversationId
-            // Create a title based on language and topic
             conversationTitle = "$languageCode: $topicId" // Simple title
             val newConversation = ChatConversationEntity(
                 id = newConversationId,
                 targetLanguageCode = languageCode,
                 topicId = topicId,
-                lastMessage = null,
-                lastMessageTimestamp = System.currentTimeMillis(),
-                userProfileImageUrl = null, // Set a default AI buddy image if available
+                lastMessage = null, // Will be updated by AI's first message
+                lastMessageTimestamp = System.currentTimeMillis(), // Will be updated
+                userProfileImageUrl = null,
                 conversationTitle = conversationTitle
             )
+            // This will now also trigger the initial AI message via LlmService
             chatRepository.startNewConversation(newConversation)
-            // Optionally, send an initial AI message
-            val initialAiMessage = ChatMessageEntity(
-                conversationId = newConversationId,
-                text = "Let's talk about $topicId in $languageCode!",
-                timestamp = System.currentTimeMillis(),
-                isUserMessage = false
-            )
-            chatRepository.sendMessage(newConversationId, initialAiMessage, newConversation)
+            // The initial AI message is no longer sent explicitly from here.
+            // It's handled by ChatRepository.startNewConversation -> LlmService.getInitialGreeting
         }
     }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(0) // Scroll to the new message at the bottom
+            // Scroll to the new message (which is at the end of the original list,
+            // but appears at the top due to reverseLayout = true and items(messages.reversed()))
+            listState.animateScrollToItem(0)
         }
     }
 
@@ -123,21 +116,13 @@ fun ChatScreen(
                             isUserMessage = true
                         )
                         coroutineScope.launch {
+                            // ChatRepository.sendMessage will now also trigger the AI response
                             chatRepository.sendMessage(currentId, userMessage)
                             inputText = ""
-
-                            // Simulate AI response
-                            // kotlinx.coroutines.delay(1000)
-                            val aiResponse = ChatMessageEntity(
-                                conversationId = currentId,
-                                text = "Simulated AI reply to: \"${userMessage.text}\"",
-                                timestamp = System.currentTimeMillis() + 1, // Ensure different timestamp
-                                isUserMessage = false
-                            )
-                            chatRepository.sendMessage(currentId, aiResponse)
+                            // The simulated AI response block below is now removed.
                         }
                     }
-                }, enabled = currentChatId != null) { // Disable if no chat is active
+                }, enabled = currentChatId != null) {
                     Icon(Icons.Filled.Send, contentDescription = "Send message")
                 }
             }
@@ -149,9 +134,11 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(horizontal = 8.dp),
-            reverseLayout = true,
+            reverseLayout = true, // Newest messages at the bottom of the screen
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
         ) {
+            // messages are fetched chronologically (oldest first).
+            // .reversed() makes it newest first for display with reverseLayout.
             items(messages.reversed()) { message ->
                 ChatMessageBubble(
                     messageText = message.text,
@@ -167,11 +154,16 @@ fun ChatScreen(
     }
 }
 
+// Previews might need adjustment due to ChatRepository constructor change
+// Adding LlmService to ChatRepository, which is needed for Preview
+
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 fun ChatScreenPreview_ExistingChat() {
     val context = LocalContext.current
-    val dummyRepo = ChatRepository(AppDatabase.getInstance(context).chatDao()) // Requires context
+    // GemmaLlmService now requires context, provide it.
+    val dummyLlmService = GemmaLlmService(context)
+    val dummyRepo = ChatRepository(AppDatabase.getInstance(context).chatDao(), dummyLlmService)
     val dummyUserSettingsRepo = UserSettingsRepository(context)
     LanguageAppTheme {
         ChatScreen(
@@ -186,7 +178,8 @@ fun ChatScreenPreview_ExistingChat() {
 @Composable
 fun ChatScreenPreview_NewChatFromTopic() {
     val context = LocalContext.current
-    val dummyRepo = ChatRepository(AppDatabase.getInstance(context).chatDao())
+    val dummyLlmService = GemmaLlmService(context)
+    val dummyRepo = ChatRepository(AppDatabase.getInstance(context).chatDao(), dummyLlmService)
     val dummyUserSettingsRepo = UserSettingsRepository(context)
     LanguageAppTheme {
         ChatScreen(

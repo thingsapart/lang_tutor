@@ -3,9 +3,14 @@ package com.example.languageapp.data
 import com.example.languageapp.data.dao.ChatDao
 import com.example.languageapp.data.model.ChatConversationEntity
 import com.example.languageapp.data.model.ChatMessageEntity
+import com.example.languageapp.llm.LlmService // Added import
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull // Added import for collecting from Flow
 
-class ChatRepository(private val chatDao: ChatDao) {
+class ChatRepository(
+    private val chatDao: ChatDao,
+    private val llmService: LlmService // Added LlmService dependency
+) {
 
     fun getAllConversations(): Flow<List<ChatConversationEntity>> = chatDao.getAllConversations()
 
@@ -13,37 +18,60 @@ class ChatRepository(private val chatDao: ChatDao) {
         chatDao.getMessagesForConversation(conversationId)
 
     /**
-     * Sends a message and updates the conversation summary.
-     * If conversationDetails are provided, it means this might be the first message of a new conversation.
-     * The conversation entity should be inserted or updated accordingly.
+     * Sends a user message, saves it, then gets and saves the AI's response.
+     * Updates the conversation summary.
      */
     suspend fun sendMessage(
         conversationId: String,
-        message: ChatMessageEntity,
-        conversationDetails: ChatConversationEntity? = null
+        userMessage: ChatMessageEntity,
+        // Removed conversationDetails: ChatConversationEntity? = null - this will be handled by startNewConversation
     ) {
-        // If this is a new conversation (details provided), ensure the conversation exists.
-        // If it's an existing conversation, these details might be used to update title/image if needed,
-        // but primarily we just need to ensure it exists before adding a message.
-        // The OnConflictStrategy.REPLACE in ChatDao for insertConversation handles updates.
-        if (conversationDetails != null) {
-            chatDao.insertConversation(conversationDetails)
-        }
+        // Save the user's message first
+        chatDao.insertMessage(userMessage)
+        chatDao.updateConversationSummary(conversationId, userMessage.text, userMessage.timestamp)
 
-        chatDao.insertMessage(message)
-        chatDao.updateConversationSummary(conversationId, message.text, message.timestamp)
+        // Get AI response
+        // Assuming targetLanguage is stored in the conversation entity or can be fetched
+        val conversation = chatDao.getConversationById(conversationId).firstOrNull() // Helper needed in DAO
+        val targetLanguage = conversation?.targetLanguageCode ?: "en" // Default or fetch appropriately
+
+        llmService.generateResponse(userMessage.text, conversationId, targetLanguage)
+            .collect { aiText -> // Assuming flow emits one complete response for now
+                val aiMessage = ChatMessageEntity(
+                    conversationId = conversationId,
+                    text = aiText,
+                    timestamp = System.currentTimeMillis(),
+                    isUserMessage = false
+                )
+                chatDao.insertMessage(aiMessage)
+                chatDao.updateConversationSummary(conversationId, aiMessage.text, aiMessage.timestamp)
+            }
     }
 
     /**
-     * Starts a new conversation by inserting its details.
-     * This is useful when a conversation is created (e.g., by selecting a language/topic)
-     * before any messages are sent.
+     * Starts a new conversation by inserting its details and an initial AI greeting.
      */
     suspend fun startNewConversation(conversation: ChatConversationEntity) {
-        chatDao.insertConversation(conversation)
+        chatDao.insertConversation(conversation) // Save conversation details first
+
+        // Get and save initial AI greeting
+        val initialAiGreetingText = llmService.getInitialGreeting(
+            topic = conversation.topicId ?: "general", // Use topicId or a default
+            targetLanguage = conversation.targetLanguageCode
+        )
+        val initialAiMessage = ChatMessageEntity(
+            conversationId = conversation.id,
+            text = initialAiGreetingText,
+            timestamp = System.currentTimeMillis(), // Ensure this is slightly after conversation creation if needed
+            isUserMessage = false
+        )
+        chatDao.insertMessage(initialAiMessage)
+        // Update conversation summary with the AI's first message
+        chatDao.updateConversationSummary(conversation.id, initialAiMessage.text, initialAiMessage.timestamp)
     }
 
-    // Potentially add other methods like:
-    // suspend fun getConversationDetails(conversationId: String): ChatConversationEntity?
-    // suspend fun createNewChatId(...): String
+    // Note: A new method getConversationById(conversationId: String): Flow<ChatConversationEntity?>
+    // will be needed in ChatDao and subsequently here if not already present.
+    // For simplicity in this step, we'll assume it can be added or worked around.
+    // If ChatDao.getConversationById is suspend fun, then .firstOrNull() is not needed.
 }
