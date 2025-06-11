@@ -1,8 +1,8 @@
 package com.thingsapart.langtutor.data.dao
 
 import androidx.room.*
-import com.example.languageapp.data.model.ChatConversationEntity
-import com.example.languageapp.data.model.ChatMessageEntity
+import com.thingsapart.langtutor.data.model.ChatConversationEntity
+import com.thingsapart.langtutor.data.model.ChatMessageEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

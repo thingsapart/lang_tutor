@@ -4,9 +4,6 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import com.example.languageapp.data.dao.ChatDao
-import com.example.languageapp.data.model.ChatConversationEntity
-import com.example.languageapp.data.model.ChatMessageEntity
 import com.thingsapart.langtutor.data.dao.ChatDao
 import com.thingsapart.langtutor.data.model.ChatConversationEntity
 import com.thingsapart.langtutor.data.model.ChatMessageEntity

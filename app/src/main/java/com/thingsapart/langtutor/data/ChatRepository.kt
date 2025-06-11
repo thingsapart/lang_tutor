@@ -1,13 +1,11 @@
 package com.thingsapart.langtutor.data
 
-import com.example.languageapp.data.dao.ChatDao
-import com.example.languageapp.data.model.ChatConversationEntity
-import com.example.languageapp.data.model.ChatMessageEntity
-import com.example.languageapp.llm.LlmService // Added import
+import com.thingsapart.langtutor.data.dao.ChatDao
 import com.thingsapart.langtutor.data.model.ChatConversationEntity
 import com.thingsapart.langtutor.data.model.ChatMessageEntity
+import com.thingsapart.langtutor.llm.LlmService
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull // Added import for collecting from Flow
+import kotlinx.coroutines.flow.firstOrNull
 
 class ChatRepository(
     private val chatDao: ChatDao,
@@ -56,7 +54,7 @@ class ChatRepository(
     suspend fun startNewConversation(conversation: ChatConversationEntity) {
         chatDao.insertConversation(conversation) // Save conversation details first
 
-        val initialAiGreetingText: String
+        var initialAiGreetingText: String
         try {
             initialAiGreetingText = llmService.getInitialGreeting(
                 topic = conversation.topicId ?: "general",

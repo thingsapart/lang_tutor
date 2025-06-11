@@ -101,4 +101,6 @@ dependencies {
     // If this project only uses Java source, use the Java annotationProcessor
     // No additional plugins are necessary
     annotationProcessor("androidx.room:room-compiler:$room_version")
+
+    implementation ("com.google.mediapipe:tasks-genai:0.10.22")
 }

@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.languageapp.llm.LlmModelConfig // Assuming LlmModelConfig is the type for modelInfo
+import com.thingsapart.langtutor.llm.LlmModelConfig
 
 // Define a state holder for the dialog
 data class ModelDownloadDialogState(

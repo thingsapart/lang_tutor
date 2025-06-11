@@ -14,16 +14,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.languageapp.data.AppDatabase
-import com.example.languageapp.data.UserSettingsRepository
-import com.example.languageapp.data.model.ChatConversationEntity
-import com.example.languageapp.data.model.ChatMessageEntity
-import com.example.languageapp.llm.LlmServiceState
-import com.example.languageapp.llm.MediaPipeLlmService
-import com.example.languageapp.ui.components.ChatMessageBubble
-import com.example.languageapp.ui.components.ModelDownloadDialog
-import com.example.languageapp.ui.components.ModelDownloadDialogState
-import com.example.languageapp.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.data.AppDatabase
+import com.thingsapart.langtutor.data.UserSettingsRepository
+import com.thingsapart.langtutor.data.dao.ChatDao
+import com.thingsapart.langtutor.data.model.ChatConversationEntity
+import com.thingsapart.langtutor.data.model.ChatMessageEntity
+import com.thingsapart.langtutor.llm.LlmServiceState
+import com.thingsapart.langtutor.llm.MediaPipeLlmService
+import com.thingsapart.langtutor.ui.components.ChatMessageBubble
+import com.thingsapart.langtutor.ui.components.ModelDownloadDialog
+import com.thingsapart.langtutor.ui.components.ModelDownloadDialogState
+import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -207,7 +208,7 @@ fun ChatScreen(
             reverseLayout = true,
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
         ) {
-            items(messages.reversed()) { message ->
+            messages.reversed().forEach { message ->
                 ChatMessageBubble(
                     messageText = message.text,
                     isUserMessage = message.isUserMessage,

@@ -7,18 +7,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.ui.Modifier
-import com.example.languageapp.data.AppDatabase
-import com.example.languageapp.data.UserSettingsRepository
-import com.example.languageapp.llm.MediaPipeLlmService
-import com.example.languageapp.llm.ModelDownloader // Added import
-import com.example.languageapp.ui.AppNavigator // Corrected to AppNavigator based on file
-import com.example.languageapp.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 import com.thingsapart.langtutor.data.AppDatabase
 import com.thingsapart.langtutor.data.UserSettingsRepository
 import com.thingsapart.langtutor.llm.MediaPipeLlmService
 import com.thingsapart.langtutor.llm.ModelDownloader
 import com.thingsapart.langtutor.ui.AppNavigator
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 
 class MainActivity : ComponentActivity() {
 

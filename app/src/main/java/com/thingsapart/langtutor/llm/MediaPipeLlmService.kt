@@ -22,9 +22,7 @@ class MediaPipeLlmService(
     private val modelConfig: LlmModelConfig = ModelManager.DEFAULT_MODEL,
     private val modelDownloader: ModelDownloader
 ) : LlmService { // Implements LlmService
-
-    // Updated: Expose as StateFlow from LlmService interface
-    override val _serviceState = MutableStateFlow<LlmServiceState>(LlmServiceState.Idle)
+    private val _serviceState = MutableStateFlow<LlmServiceState>(LlmServiceState.Idle)
     override val serviceState: StateFlow<LlmServiceState> = _serviceState.asStateFlow()
 
     private var llmInference: LlmInference? = null
@@ -77,7 +75,12 @@ class MediaPipeLlmService(
                 Log.i(TAG, "Set preferred backend to: $it")
             }
 
-            llmInference = LlmInference.createFromOptions(context, optionsBuilder.build())
+            val options = optionsBuilder
+                .setPreferredBackend(LlmInference.Backend.GPU)
+                .setMaxTopK(modelConfig.topK)
+                .setMaxTokens(modelConfig.maxTokens)
+                .build()
+            llmInference = LlmInference.createFromOptions(context, options)
             Log.i(TAG, "LlmInference engine created. Creating session...")
 
             // Create and configure LlmInferenceSession

@@ -17,8 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.languageapp.ui.components.TopicCard
-import com.example.languageapp.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.components.TopicCard
+import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 
 data class Topic(val name: String, val id: String, val imageUrl: String)
 

@@ -6,10 +6,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.languageapp.data.UserSettingsRepository
-import com.example.languageapp.llm.MediaPipeLlmService // Added
-import com.example.languageapp.navigation.Screen
-import com.example.languageapp.ui.screens.*
+import com.com.thingsapart.langtutor.data.UserSettingsRepository
+import com.thingsapart.langtutor.data.UserSettingsRepository
+import com.thingsapart.langtutor.llm.MediaPipeLlmService
+import com.thingsapart.langtutor.navigation.Screen
+import com.thingsapart.langtutor.ui.screens.ChatScreen
+import com.thingsapart.langtutor.ui.screens.LanguageSelectorScreen
+import com.thingsapart.langtutor.ui.screens.OngoingChatsScreen
+import com.thingsapart.langtutor.ui.screens.ReturningUserScreen
+import com.thingsapart.langtutor.ui.screens.TopicSelectorScreen
 import kotlinx.coroutines.launch
 
 @Composable

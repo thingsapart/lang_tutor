@@ -13,10 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle;
-import com.example.languageapp.data.model.ChatConversationEntity
-import com.example.languageapp.ui.components.ChatListItem
-import com.example.languageapp.ui.theme.LanguageAppTheme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.thingsapart.langtutor.data.model.ChatConversationEntity
+import com.thingsapart.langtutor.ui.components.ChatListItem
+import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.*
@@ -62,7 +62,7 @@ fun OngoingChatsScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(conversations) { conversation ->
+                    conversations.forEach { conversation ->
                         ChatListItem(
                             userName = conversation.conversationTitle, // Using conversationTitle for userName
                             lastMessage = conversation.lastMessage ?: "",
@@ -132,7 +132,7 @@ fun OngoingChatsScreenPreview() {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(placeholderChatsPreview) { conversation ->
+                    placeholderChatsPreview.forEach { conversation ->
                         ChatListItem(
                             userName = conversation.conversationTitle,
                             lastMessage = conversation.lastMessage ?: "",

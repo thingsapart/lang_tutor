@@ -3,6 +3,15 @@ package com.thingsapart.langtutor.llm
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
+// Sealed interface for service state
+sealed interface LlmServiceState {
+    object Idle : LlmServiceState
+    object Initializing : LlmServiceState
+    data class Downloading(val model: LlmModelConfig, val progress: Float) : LlmServiceState // progress 0-100
+    object Ready : LlmServiceState
+    data class Error(val message: String, val modelBeingProcessed: LlmModelConfig? = null) : LlmServiceState
+}
+
 /**
  * Interface for interacting with a Language Model.
  */

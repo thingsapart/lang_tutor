@@ -17,8 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.languageapp.ui.components.LanguageCard
-import com.example.languageapp.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.components.LanguageCard
+import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 
 data class Language(val name: String, val code: String, val flagImageUrl: String)
 
