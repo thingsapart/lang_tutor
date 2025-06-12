@@ -47,3 +47,8 @@ val PromptPastelYellow = Color(0xFFFFFDAD)
 val PromptPastelGreen = Color(0xFFADFFAD)
 val PromptPastelBlue = Color(0xFFADFFFF)
 val PromptPastelPurple = Color(0xFFADADFF)
+
+// Colors for ChatScreen contrast
+val SomeDarkColorForText = Color(0xFF121212)
+val UserBubbleColor = Color(0xFFADD8E6) // Light blue, now opaque
+val AiBubbleColor = Color(0xFFFFB6C1)   // Light pink, now opaque

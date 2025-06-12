@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color // Ensure this is imported
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,9 +26,13 @@ import com.thingsapart.langtutor.llm.LlmServiceState
 import com.thingsapart.langtutor.llm.ModelManager // Needed for FakeLlmService example state
 // import com.thingsapart.langtutor.llm.MediaPipeLlmService // No longer directly needed if AppNav passes LlmService
 import com.thingsapart.langtutor.ui.components.ChatMessageBubble
+import com.thingsapart.langtutor.ui.components.MetallicPanelGradientBackground // New import
 import com.thingsapart.langtutor.ui.components.ModelDownloadDialog
 import com.thingsapart.langtutor.ui.components.ModelDownloadDialogState
+import com.thingsapart.langtutor.ui.theme.AiBubbleColor
 import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.SomeDarkColorForText
+import com.thingsapart.langtutor.ui.theme.UserBubbleColor
 import kotlinx.coroutines.delay // Added
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +54,13 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     var currentChatId by remember { mutableStateOf(chatId) }
     var conversationTitle by remember { mutableStateOf("Chat") }
+
+    // Define contrasting colors (these could also come from a Theme extension)
+    val textColorOnGradient = SomeDarkColorForText // Use a predefined dark color for high contrast
+    val userBubbleBackgroundColor = UserBubbleColor
+    val aiBubbleBackgroundColor = AiBubbleColor
+    val textOnUserBubbleColor = SomeDarkColorForText
+    val textOnAiBubbleColor = SomeDarkColorForText
 
     val messagesFlow: Flow<List<ChatMessageEntity>> = remember(currentChatId) {
         currentChatId?.let {
@@ -164,20 +176,35 @@ fun ChatScreen(
             listState.animateScrollToItem(0)
         }
     }
-
-    Scaffold(
-        topBar = { TopAppBar(title = { Text(conversationTitle) }, backgroundColor = MaterialTheme.colors.primary) },
-        bottomBar = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(8.dp),
+    MetallicPanelGradientBackground(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            // Make Scaffold background transparent to see the gradient
+            backgroundColor = Color.Transparent,
+            topBar = {
+                TopAppBar(
+                    title = { Text(conversationTitle, color = textColorOnGradient) }, // Ensure title is readable
+                    // Consider making TopAppBar background transparent or semi-transparent
+                    backgroundColor = Color.Black.copy(alpha = 0.2f), // Example: semi-transparent
+                    elevation = 0.dp // Remove shadow if it looks odd with gradient
+                )
+            },
+            bottomBar = {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextField(
                     value = inputText,
                     onValueChange = { inputText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...") },
-                    colors = TextFieldDefaults.textFieldColors(backgroundColor = MaterialTheme.colors.surface)
+                    placeholder = { Text("Type a message...", color = textColorOnGradient.copy(alpha = 0.7f)) },
+                    colors = TextFieldDefaults.textFieldColors(
+                        textColor = textColorOnGradient,
+                        backgroundColor = Color.White.copy(alpha = 0.5f), // Semi-transparent background for input
+                        cursorColor = textColorOnGradient,
+                        focusedIndicatorColor = Color.Transparent, // Optional: hide indicator if design calls for it
+                        unfocusedIndicatorColor = Color.Transparent
+                    )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 IconButton(
@@ -198,7 +225,11 @@ fun ChatScreen(
                     },
                     enabled = currentChatId != null && llmState is LlmServiceState.Ready
                 ) {
-                    Icon(Icons.Filled.Send, contentDescription = "Send message")
+                    Icon(
+                        Icons.Filled.Send,
+                        contentDescription = "Send message",
+                        tint = textColorOnGradient // Ensure icon is visible
+                    )
                 }
             }
         }
@@ -210,9 +241,13 @@ fun ChatScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
         ) {
             items(messages.reversed(), key = { it.id }) { message ->
+                // Pass bubble and text colors to ChatMessageBubble
+                // This might require ChatMessageBubble to accept these as parameters
                 ChatMessageBubble(
                     messageText = message.text,
                     isUserMessage = message.isUserMessage,
+                    bubbleColor = if (message.isUserMessage) userBubbleBackgroundColor else aiBubbleBackgroundColor,
+                    textColor = if (message.isUserMessage) textOnUserBubbleColor else textOnAiBubbleColor,
                     showSpeakerIcon = !message.isUserMessage,
                     onSpeakerIconClick = {
                         Log.d("ChatScreen", "Speaker icon clicked for message: ${message.text}")
@@ -222,6 +257,8 @@ fun ChatScreen(
         }
     }
 }
+// ... existing LaunchedEffects and Dialogs ...
+// ModelDownloadDialog might need its own background/theming if it appears over this.
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
