@@ -21,7 +21,12 @@ data class LlmModelConfig(
     val topK: Int,
     val topP: Float,
     val maxTokens: Int = 2048, // Default max tokens
-    val thinkingIndicator: Boolean = false // If model shows a 'thinking' indicator
+    val thinkingIndicator: Boolean = false, // If model shows a 'thinking' indicator
+    // New properties for LiteRT
+    val padTokenId: Int = 0,
+    val bosTokenId: Int? = null,
+    val eosTokenId: Int? = null,
+    val vocabFileNameInMetadata: String = "vocab.txt"
 )
 
 object ModelManager {
@@ -36,7 +41,11 @@ object ModelManager {
         temperature = 0.7f,
         topK = 20,
         topP = 0.8f,
-        maxTokens = 2048
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
     )
 
     val QWEN_2_5_500M_IT_GPU = LlmModelConfig(
@@ -50,7 +59,11 @@ object ModelManager {
         temperature = 0.7f,
         topK = 20,
         topP = 0.8f,
-        maxTokens = 2048
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
     )
 
     val SMOL_135M_CPU = LlmModelConfig(
@@ -64,7 +77,11 @@ object ModelManager {
         temperature = 0.7f,
         topK = 20,
         topP = 0.8f,
-        maxTokens = 2048
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
     )
 
     val SMOL_135M_GPU = LlmModelConfig(
@@ -78,7 +95,11 @@ object ModelManager {
         temperature = 0.7f,
         topK = 20,
         topP = 0.8f,
-        maxTokens = 2048
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
     )
 
     // Add more models as needed, e.g., from the user's example list if GGUF versions are available.
@@ -103,12 +124,4 @@ object ModelManager {
         return getLocalModelFile(context, modelConfig).exists()
     }
 
-    // Helper to convert our ModelBackend to MediaPipe's Backend
-    fun mapToMediaPipeBackend(backend: ModelBackend?): LlmInference.Backend? {
-        return when (backend) {
-            ModelBackend.CPU -> LlmInference.Backend.CPU
-            ModelBackend.GPU -> LlmInference.Backend.GPU
-            null -> null
-        }
-    }
 }
