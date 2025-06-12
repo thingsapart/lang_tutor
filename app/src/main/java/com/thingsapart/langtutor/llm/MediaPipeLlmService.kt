@@ -37,78 +37,131 @@ class MediaPipeLlmService(
     override suspend fun initialize() {
         Log.i(TAG, "initialize called. Current state: ${_serviceState.value}")
         // Close existing session and engine before re-initializing
-        llmSession?.close()
-        llmSession = null
-        llmInference?.close()
-        llmInference = null
+        closeSilently() // Use a helper to silence exceptions during cleanup
 
         _serviceState.value = LlmServiceState.Initializing
         Log.i(TAG, "Initializing for model: ${modelConfig.modelName}")
 
-        val modelFile: File
-        if (!ModelManager.checkModelExists(context, modelConfig)) {
-            Log.i(TAG, "Model ${modelConfig.modelName} not found locally. Starting download from ${modelConfig.url}")
-            _serviceState.value = LlmServiceState.Downloading(modelConfig, 0f)
-            val downloadResult = modelDownloader.downloadModel(context, modelConfig) { progress ->
-                val currentState = _serviceState.value
-                if (currentState is LlmServiceState.Downloading && currentState.model.internalModelId == modelConfig.internalModelId) {
-                    _serviceState.value = LlmServiceState.Downloading(modelConfig, progress)
-                }
-            }
+        val modelFileResult = downloadModelIfNeeded()
+        if (modelFileResult.isFailure) {
+            // Error state already set by downloadModelIfNeeded
+            return
+        }
+        val modelFile = modelFileResult.getOrThrow()
 
-            if (downloadResult.isFailure) {
-                val errorMsg = "Failed to download model ${modelConfig.modelName}: ${downloadResult.exceptionOrNull()?.message}"
-                Log.e(TAG, errorMsg, downloadResult.exceptionOrNull())
-                _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
-                return
-            }
-            modelFile = downloadResult.getOrThrow()
-            Log.i(TAG, "Model ${modelConfig.modelName} downloaded successfully to ${modelFile.absolutePath}")
-        } else {
-            modelFile = ModelManager.getLocalModelFile(context, modelConfig)
-            Log.i(TAG, "Model ${modelConfig.modelName} found locally at ${modelFile.absolutePath}")
+        if (!createEngine(modelFile)) {
+            // Error state already set by createEngine
+            closeSilently() // Ensure engine is closed if session creation fails or if engine creation failed partially
+            return
         }
 
+        if (!createSession()) {
+            // Error state already set by createSession
+            closeSilently() // Ensure session and engine are closed
+            return
+        }
+
+        _serviceState.value = LlmServiceState.Ready
+        Log.i(TAG, "MediaPipe LlmService initialized successfully and is Ready.")
+    }
+
+    private suspend fun downloadModelIfNeeded(): Result<File> {
+        if (ModelManager.checkModelExists(context, modelConfig)) {
+            val modelFile = ModelManager.getLocalModelFile(context, modelConfig)
+            Log.i(TAG, "Model ${modelConfig.modelName} found locally at ${modelFile.absolutePath}")
+            return Result.success(modelFile)
+        }
+
+        Log.i(TAG, "Model ${modelConfig.modelName} not found locally. Starting download from ${modelConfig.url}")
+        _serviceState.value = LlmServiceState.Downloading(modelConfig, 0f)
+        val downloadResult = modelDownloader.downloadModel(context, modelConfig) { progress ->
+            val currentState = _serviceState.value
+            if (currentState is LlmServiceState.Downloading && currentState.model.internalModelId == modelConfig.internalModelId) {
+                _serviceState.value = LlmServiceState.Downloading(modelConfig, progress)
+            }
+        }
+
+        if (downloadResult.isFailure) {
+            val errorMsg = "Failed to download model ${modelConfig.modelName}: ${downloadResult.exceptionOrNull()?.message}"
+            Log.e(TAG, errorMsg, downloadResult.exceptionOrNull())
+            _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
+            return Result.failure(downloadResult.exceptionOrNull() ?: Exception(errorMsg))
+        }
+
+        val modelFile = downloadResult.getOrThrow()
+        Log.i(TAG, "Model ${modelConfig.modelName} downloaded successfully to ${modelFile.absolutePath}")
+        return Result.success(modelFile)
+    }
+
+    private fun createEngine(modelFile: File): Boolean {
+        Log.i(TAG, "Creating LlmInference engine for ${modelConfig.modelName} at ${modelFile.absolutePath}")
         try {
-            Log.i(TAG, "Creating LlmInference engine for ${modelConfig.modelName} at ${modelFile.absolutePath}")
             val inferenceOptionsBuilder = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
-                .setMaxTokens(modelConfig.maxTokens) // Output tokens
+                .setMaxTokens(modelConfig.maxTokens)
 
             ModelManager.mapToMediaPipeBackend(modelConfig.preferredBackend)?.let {
                 inferenceOptionsBuilder.setPreferredBackend(it)
                 Log.i(TAG, "Set preferred backend to: $it")
             }
-            // Example: inferenceOptionsBuilder.setPreferredBackend(LlmInference.Backend.GPU)
 
             val inferenceOptions = inferenceOptionsBuilder.build()
             llmInference = LlmInference.createFromOptions(context, inferenceOptions)
             Log.i(TAG, "LlmInference engine created for ${modelConfig.modelName}.")
+            return true
+        } catch (e: Exception) {
+            val errorMsg = "Failed to create LlmInference engine for ${modelConfig.modelName}: ${e.message}"
+            Log.e(TAG, errorMsg, e)
+            _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
+            llmInference?.close() // Clean up if partially created
+            llmInference = null
+            return false
+        }
+    }
 
-            // Now create the session
-            Log.i(TAG, "Creating LlmInferenceSession...")
+    private fun createSession(): Boolean {
+        if (llmInference == null) {
+            val errorMsg = "Cannot create session because LlmInference engine is null."
+            Log.e(TAG, errorMsg)
+            _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
+            return false
+        }
+        Log.i(TAG, "Creating LlmInferenceSession...")
+        try {
             val sessionOptionsBuilder = LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTemperature(modelConfig.temperature)
                 .setTopK(modelConfig.topK)
                 .setTopP(modelConfig.topP)
-                // maxTokens is typically an engine-level option for total output length,
-                // but if session options also expose it for context window or other, review API.
-                // For now, following user's previous structure where maxTokens was on engine.
 
             val sessionOptions = sessionOptionsBuilder.build()
-            llmSession = LlmInferenceSession.createFromOptions(llmInference, sessionOptions) // Create session from engine
-
+            llmSession = LlmInferenceSession.createFromOptions(llmInference, sessionOptions)
             Log.i(TAG, "LlmInferenceSession created for ${modelConfig.modelName}.")
-            _serviceState.value = LlmServiceState.Ready
-            Log.i(TAG, "MediaPipe LlmService initialized successfully and is Ready.")
-
+            return true
         } catch (e: Exception) {
-            val errorMsg = "Failed to initialize MediaPipe LLM engine or session for ${modelConfig.modelName}: ${e.message}"
+            val errorMsg = "Failed to create LlmInferenceSession for ${modelConfig.modelName}: ${e.message}"
             Log.e(TAG, errorMsg, e)
             _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
-            close()
+            llmSession?.close() // Clean up if partially created
+            llmSession = null
+            return false
         }
     }
+
+    private fun closeSilently() {
+        try {
+            llmSession?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Silent close: Exception during LlmInferenceSession close: ${e.message}")
+        }
+        llmSession = null
+        try {
+            llmInference?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Silent close: Exception during LlmInference engine close: ${e.message}")
+        }
+        llmInference = null
+    }
+
 
     override fun generateResponse(prompt: String, conversationId: String, targetLanguage: String): Flow<String> {
         if (_serviceState.value !is LlmServiceState.Ready || llmSession == null) {
@@ -136,11 +189,13 @@ class MediaPipeLlmService(
             }
 
             try {
-                 llmSession?.addQueryChunk(fullPrompt) // Add query chunk first
-                 llmSession?.generateResponseAsync(progressListener) // Then call generateResponseAsync without prompt
+                // llmSession is already checked for nullity by the condition at the start of the method.
+                // If it were null, an IllegalStateException would have been thrown.
+                llmSession!!.addQueryChunk(fullPrompt) // Add query chunk first
+                llmSession!!.generateResponseAsync(progressListener) // Then call generateResponseAsync without prompt
             } catch (e: Exception) {
-                Log.e(TAG, "Exception calling generateResponseAsync: ${e.message}", e)
-                channel.close(e)
+                Log.e(TAG, "Exception calling addQueryChunk or generateResponseAsync: ${e.message}", e)
+                channel.close(e) // Close channel with exception
             }
 
             awaitClose { Log.d(TAG, "callbackFlow awaitClose for prompt: \"$fullPrompt\"") }
@@ -176,31 +231,33 @@ class MediaPipeLlmService(
         }
     }
 
-    override fun resetSession() { // Changed signature to override fun
+    override fun resetSession() {
         Log.i(TAG, "resetSession called.")
+        _serviceState.value = LlmServiceState.Initializing // Or a "Resetting" state
+
         if (llmInference == null) {
-            Log.e(TAG, "Cannot reset session because LlmInference engine is null. Service needs initialization.")
+            Log.e(TAG, "Cannot reset session: LlmInference engine is null. Service may need full initialization.")
             _serviceState.value = LlmServiceState.Error("Reset failed: LLM engine not initialized.", modelConfig)
             return
         }
-        _serviceState.value = LlmServiceState.Initializing // Or a new "Resetting" state if desired
+
         try {
-            llmSession?.close()
-            val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
-                .setTemperature(modelConfig.temperature)
-                .setTopK(modelConfig.topK)
-                .setTopP(modelConfig.topP)
-                .build()
-
-            // llmInference is confirmed not null here by the check above
-            llmSession = LlmInferenceSession.createFromOptions(llmInference!!, sessionOptions)
-            _serviceState.value = LlmServiceState.Ready
-
-            Log.i(TAG, "LlmInferenceSession reset and configured successfully.")
+            llmSession?.close() // Close existing session
+            llmSession = null
+            Log.i(TAG, "Existing LlmInferenceSession closed.")
         } catch (e: Exception) {
-            val errorMsg = "Failed to reset LlmInferenceSession: ${e.message}"
-            Log.e(TAG, errorMsg, e)
-            _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
+            Log.w(TAG, "Exception closing session during reset: ${e.message}", e)
+            // Continue to try creating a new one
+        }
+
+        if (createSession()) { // Recreate the session
+            _serviceState.value = LlmServiceState.Ready
+            Log.i(TAG, "LlmInferenceSession reset and new session created successfully.")
+        } else {
+            // createSession already sets the error state and logs
+            Log.e(TAG, "Failed to create new session during reset.")
+            // llmInference is not closed here, as the engine might still be valid.
+            // If createSession failed, _serviceState is already Error.
         }
     }
 
@@ -210,7 +267,8 @@ class MediaPipeLlmService(
             llmSession?.close()
             Log.d(TAG, "LlmInferenceSession closed.")
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during LlmInferenceSession close: ${e.message}", e)
+            // Log all exceptions but don't let one prevent others from closing
+            Log.e(TAG, "Exception during LlmInferenceSession close in close(): ${e.message}", e)
         }
         llmSession = null
 
@@ -218,15 +276,17 @@ class MediaPipeLlmService(
             llmInference?.close()
             Log.d(TAG, "LlmInference engine closed.")
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during LlmInference engine close: ${e.message}", e)
+            Log.e(TAG, "Exception during LlmInference engine close in close(): ${e.message}", e)
         }
         llmInference = null
 
-        if (_serviceState.value !is LlmServiceState.Idle) {
-            _serviceState.value = LlmServiceState.Idle
-            Log.i(TAG, "MediaPipeLlmService closed and state set to Idle.")
-        } else {
-            Log.d(TAG, "MediaPipeLlmService close() called but was already Idle.")
+        // Set to Idle only if not already in an error state from a failed initialization
+        // that might have called close().
+        if (_serviceState.value !is LlmServiceState.Error) {
+             _serviceState.value = LlmServiceState.Idle
+        } else if (_serviceState.value is LlmServiceState.Error){
+            Log.w(TAG, "MediaPipeLlmService closed, but was already in an Error state.")
         }
+        Log.i(TAG, "MediaPipeLlmService close() completed. Final state: ${_serviceState.value}")
     }
 }

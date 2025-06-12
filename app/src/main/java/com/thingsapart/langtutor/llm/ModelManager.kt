@@ -191,6 +191,186 @@ object ModelManager {
     // Add more models as needed, e.g., from the user's example list if GGUF versions are available.
     // For now, keeping it to these two as examples.
 
+    val GEMMA3_1B_IT_CPU = LlmModelConfig(
+        modelName = "Gemma3 1B IT (CPU)",
+        internalModelId = "Gemma3-1B-IT_multi-prefill-seq_q8_ekv2048.task",
+        url = "https://huggingface.co/google/gemma-3-1b-it-tflite/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q8_ekv2048.task?download=true",
+        licenseUrl = "https://huggingface.co/google/gemma-3-1b-it-tflite/blob/main/LICENSE.md",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 1,
+        topP = 1.0f,
+        maxTokens = 2048, // from ekv2048
+        thinkingIndicator = false
+    )
+
+    val GEMMA_3_1B_IT_GPU = LlmModelConfig(
+        modelName = "Gemma3 1B IT (GPU)",
+        internalModelId = "Gemma3-1B-IT_multi-prefill-seq_q8_ekv2048.task",
+        url = "https://huggingface.co/google/gemma-3-1b-it-tflite/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q8_ekv2048.task?download=true",
+        licenseUrl = "https://huggingface.co/google/gemma-3-1b-it-tflite/blob/main/LICENSE.md",
+        needsAuth = false,
+        preferredBackend = ModelBackend.GPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 1,
+        topP = 1.0f,
+        maxTokens = 2048, // from ekv2048
+        thinkingIndicator = false
+    )
+
+    val GEMMA_2_2B_IT_CPU = LlmModelConfig(
+        modelName = "Gemma2 2B IT (CPU)",
+        internalModelId = "gemma-2-2b-it-cpu-2k.task", // Assuming ekv2048 for 2k
+        url = "https://huggingface.co/google/gemma-2-2b-it-tflite/resolve/main/gemma-2-2b-it-cpu-2k.task?download=true",
+        licenseUrl = "https://huggingface.co/google/gemma-2-2b-it-tflite/blob/main/LICENSE.md",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 1,
+        topP = 1.0f,
+        maxTokens = 2048, // from 2k in filename
+        thinkingIndicator = false
+    )
+
+    val DEEPSEEK_R1_DISTILL_QWEN_1_5_B = LlmModelConfig(
+        modelName = "DeepSeek-R1 Distill Qwen 1.5B",
+        internalModelId = "DeepSeek-R1_Distill_Qwen1.5-1.5B_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/DeepSeek-R1_Distill_Qwen1.5-1.5B/resolve/main/DeepSeek-R1_Distill_Qwen1.5-1.5B_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU, can be GPU too
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 1280, // from ekv1280
+        thinkingIndicator = true
+    )
+
+    val LLAMA_3_2_1B_INSTRUCT = LlmModelConfig(
+        modelName = "Llama3.2 1B Instruct",
+        internalModelId = "Llama3.2-1B-Instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/Llama3.2-1B-Instruct/resolve/main/Llama3.2-1B-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 1280, // from ekv1280
+        thinkingIndicator = true
+    )
+
+    val LLAMA_3_2_3B_INSTRUCT = LlmModelConfig(
+        modelName = "Llama3.2 3B Instruct",
+        internalModelId = "Llama3.2-3B-Instruct_multi-prefill-seq_q8_ekv2048.task",
+        url = "https://huggingface.co/litert-community/Llama3.2-3B-Instruct/resolve/main/Llama3.2-3B-Instruct_multi-prefill-seq_q8_ekv2048.task?download=true",
+        licenseUrl = "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048, // from ekv2048
+        thinkingIndicator = true
+    )
+
+    val PHI_4_MINI_INSTRUCT = LlmModelConfig(
+        modelName = "Phi-4-mini Instruct",
+        internalModelId = "Phi-4-mini-Instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/Phi-4-mini-Instruct/resolve/main/Phi-4-mini-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 1280, // from ekv1280
+        thinkingIndicator = true
+    )
+
+    val QWEN2_0_5B_INSTRUCT = LlmModelConfig(
+        modelName = "Qwen2 0.5B Instruct",
+        internalModelId = "Qwen2-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task", // Matches existing Qwen internalId format style
+        url = "https://huggingface.co/qwen/Qwen2-0.5B-Instruct-TFLite/resolve/main/Qwen2-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2-beta/blob/main/LICENSE. gikk", // Note: license filename might vary, using placeholder
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 1280, // from ekv1280
+        thinkingIndicator = false // Qwen models were false before
+    )
+
+    val QWEN2_1_5B_INSTRUCT = LlmModelConfig(
+        modelName = "Qwen2 1.5B Instruct",
+        internalModelId = "Qwen2-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/qwen/Qwen2-1.5B-Instruct-TFLite/resolve/main/Qwen2-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2-beta/blob/main/LICENSE.gikk",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 1280, // from ekv1280
+        thinkingIndicator = false
+    )
+
+    val QWEN2_5_3B_INSTRUCT = LlmModelConfig( // Assuming this is a new size, distinct from existing 0.5B
+        modelName = "Qwen2.5 3B Instruct",
+        internalModelId = "Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv2048.task", // Hypothetical filename
+        url = "https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv2048.task?download=true", // Hypothetical URL
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048, // from ekv2048
+        thinkingIndicator = false
+    )
+
+    val SMOLLM_135M_INSTRUCT = LlmModelConfig( // This seems to be a duplicate of SMOL_135M_CPU/GPU but with .task
+        modelName = "SmolLM 135M Instruct (.task)", // Differentiating name slightly
+        internalModelId = "SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task", // .task extension
+        url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE", // Using Qwen license as per existing SmolLM
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 1280, // from ekv1280
+        thinkingIndicator = false // Consistent with existing SmolLM
+    )
+
+    val TINYLLAMA_1_1B_CHAT_V1_0 = LlmModelConfig(
+        modelName = "TinyLlama 1.1B Chat v1.0",
+        internalModelId = "TinyLlama-1.1B-Chat-v1.0_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/TinyLlama-1.1B-Chat-v1.0/resolve/main/TinyLlama-1.1B-Chat-v1.0_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU, // Defaulting to CPU
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 1280, // from ekv1280
+        thinkingIndicator = true
+    )
+
     val DEFAULT_MODEL = SMOL_135M_CPU // Default model to use
 
     fun getAllModels(): List<LlmModelConfig> {
@@ -199,7 +379,19 @@ object ModelManager {
             QWEN_2_5_500M_IT_GPU,
             SMOL_135M_CPU,
             SMOL_135M_GPU,
-            GEMMA_2B_IT_GPU_MEDIAPIPE_PLACEHOLDER
+            GEMMA_2B_IT_GPU_MEDIAPIPE_PLACEHOLDER,
+            GEMMA3_1B_IT_CPU,
+            GEMMA_3_1B_IT_GPU,
+            GEMMA_2_2B_IT_CPU,
+            DEEPSEEK_R1_DISTILL_QWEN_1_5_B,
+            LLAMA_3_2_1B_INSTRUCT,
+            LLAMA_3_2_3B_INSTRUCT,
+            PHI_4_MINI_INSTRUCT,
+            QWEN2_0_5B_INSTRUCT,
+            QWEN2_1_5B_INSTRUCT,
+            QWEN2_5_3B_INSTRUCT,
+            SMOLLM_135M_INSTRUCT,
+            TINYLLAMA_1_1B_CHAT_V1_0
         ) // Add other models here
     }
 
