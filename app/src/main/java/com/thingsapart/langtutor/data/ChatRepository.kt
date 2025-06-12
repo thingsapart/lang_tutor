@@ -82,4 +82,12 @@ class ChatRepository(
     // will be needed in ChatDao and subsequently here if not already present.
     // For simplicity in this step, we'll assume it can be added or worked around.
     // If ChatDao.getConversationById is suspend fun, then .firstOrNull() is not needed.
+
+    fun getConversationById(conversationId: String): Flow<ChatConversationEntity?> {
+        return chatDao.getConversationById(conversationId)
+    }
+
+    fun getConversationByLanguageAndTopic(languageCode: String, topicId: String): Flow<ChatConversationEntity?> {
+        return chatDao.getConversationByLanguageAndTopic(languageCode, topicId)
+    }
 }

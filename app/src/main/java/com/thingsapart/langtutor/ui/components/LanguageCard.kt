@@ -13,7 +13,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 @Composable
 fun LanguageCard(
@@ -55,7 +55,7 @@ fun LanguageCard(
 @Preview(showBackground = true)
 @Composable
 fun LanguageCardPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         LanguageCard(
             languageName = "Spanish",
             flagImageUrl = "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Flag_of_Spain.svg/1200px-Flag_of_Spain.svg.png", // Example URL

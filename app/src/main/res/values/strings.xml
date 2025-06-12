@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Language Tutor</string>
+    <string name="welcome_message">Welcome to your new language lesson. Choose your native language, the language you want to learn and a topic… then let us have a conversation!</string>
+    <string name="next_button_text">Next</string>
 </resources>

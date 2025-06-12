@@ -18,21 +18,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.thingsapart.langtutor.ui.components.TopicCard
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 data class Topic(val name: String, val id: String, val imageUrl: String)
 
-val placeholderTopics = listOf(
-    Topic("Greetings", "greetings", "https://example.com/placeholder_greetings.png"),
-    Topic("Food & Dining", "food", "https://example.com/placeholder_food.png"),
-    Topic("Travel & Directions", "travel", "https://example.com/placeholder_travel.png"),
-    Topic("Family & Friends", "family", "https://example.com/placeholder_family.png"),
-    Topic("Daily Routines", "routines", "https://example.com/placeholder_routines.png"),
-    Topic("Hobbies & Leisure", "hobbies", "https://example.com/placeholder_hobbies.png"),
-    Topic("Work & School", "work_school", "https://example.com/placeholder_work.png"),
-    Topic("Shopping", "shopping", "https://example.com/placeholder_shopping.png"),
-    Topic("Health & Wellness", "health", "https://example.com/placeholder_health.png"),
-    Topic("Weather", "weather", "https://example.com/placeholder_weather.png")
+val funTopics = listOf(
+    Topic("Movies & TV Shows", "movies_tv", "https://example.com/placeholder_movies.png"),
+    Topic("Music & Concerts", "music", "https://example.com/placeholder_music.png"),
+    Topic("Favorite Foods & Cooking", "favorite_foods", "https://example.com/placeholder_cooking.png"),
+    Topic("Sports & Fitness", "sports_fitness", "https://example.com/placeholder_sports.png"),
+    Topic("Video Games & Gaming", "video_games", "https://example.com/placeholder_gaming.png"),
+    Topic("Books & Literature", "books", "https://example.com/placeholder_books.png"),
+    Topic("Dream Vacation Spots", "dream_vacations", "https://example.com/placeholder_vacation.png"),
+    Topic("Interesting Hobbies", "hobbies_new", "https://example.com/placeholder_hobbies_new.png"),
+    Topic("Future Technology", "future_tech", "https://example.com/placeholder_tech.png"),
+    Topic("Funny Childhood Stories", "childhood_stories", "https://example.com/placeholder_childhood.png"),
+    Topic("Learning New Skills", "new_skills", "https://example.com/placeholder_skills.png"),
+    Topic("Weekend Plans", "weekend_plans", "https://example.com/placeholder_weekend.png")
 )
 
 @Composable
@@ -66,7 +68,7 @@ fun TopicSelectorScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(placeholderTopics) { topic ->
+                items(funTopics) { topic -> // Use funTopics
                     TopicCard(
                         topicName = topic.name,
                         topicImageUrl = topic.imageUrl,
@@ -81,7 +83,7 @@ fun TopicSelectorScreen(
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 fun TopicSelectorScreenPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         TopicSelectorScreen(onTopicSelected = {})
     }
 }
@@ -89,7 +91,7 @@ fun TopicSelectorScreenPreview() {
 @Preview(showBackground = true, widthDp = 480, heightDp = 800, name = "Tablet Preview")
 @Composable
 fun TopicSelectorScreenTabletPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -117,7 +119,7 @@ fun TopicSelectorScreenTabletPreview() {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    items(placeholderTopics.take(6)) { topic -> // Show fewer items for preview
+                    items(funTopics.take(6)) { topic -> // Use funTopics for preview
                         TopicCard(
                             topicName = topic.name,
                             topicImageUrl = topic.imageUrl,

@@ -13,7 +13,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 @Composable
 fun TopicCard(
@@ -56,7 +56,7 @@ fun TopicCard(
 @Preview(showBackground = true)
 @Composable
 fun TopicCardPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         TopicCard(
             topicName = "Common Greetings",
             topicImageUrl = "https://example.com/greeting_icon.png", // Replace with a real placeholder or remove if none

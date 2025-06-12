@@ -25,45 +25,69 @@ data class LlmModelConfig(
 )
 
 object ModelManager {
-
-    // Example Models (focused on LLM for now as requested)
-    // Using a simple ID that can also serve as a filename.
-    // Paths are relative to context.filesDir
-    val GEMMA_2B_IT_CPU = LlmModelConfig(
-        modelName = "Gemma 2B IT (CPU)",
-        internalModelId = "gemma-2b-it-cpu.gguf", // Example, actual filename from URL or specific conversion
-        url = "https://huggingface.co/google/gemma-2b-it-gguf/resolve/main/gemma-2b-it-q8_0.gguf", // Example GGUF URL
-        licenseUrl = "https://huggingface.co/google/gemma-2b-it",
-        needsAuth = false,
-        preferredBackend = ModelBackend.CPU,
-        thinkingIndicator = false,
-        temperature = 0.9f,
-        topK = 1,
-        topP = 1.0f,
-        maxTokens = 2048
-    )
-
-    val PHI_3_MINI_CPU = LlmModelConfig(
-        modelName = "Phi-3 Mini Instruct (CPU)",
-        internalModelId = "phi-3-mini-instruct-cpu.gguf", // Example
-        url = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf", // Example GGUF URL
-        licenseUrl = "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct",
+    val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
+        modelName = "Qwen2.5 0.5B Instruct (CPU)",
+        internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.tflite",
+        url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.CPU,
         thinkingIndicator = false,
         temperature = 0.7f,
-        topK = 50,
-        topP = 0.95f,
-        maxTokens = 4096
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048
+    )
+
+    val QWEN_2_5_500M_IT_GPU = LlmModelConfig(
+        modelName = "Qwen2.5 0.5B Instruct (GPU)",
+        internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.tflite",
+        url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.GPU,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048
+    )
+
+    val SMOL_135M_CPU = LlmModelConfig(
+        modelName = "SmolLM 135M IT (CPU)",
+        internalModelId = "olLM-135M-Instruct_seq128_q8_ekv1280.tflite",
+        url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048
+    )
+
+    val SMOL_135M_GPU = LlmModelConfig(
+        modelName = "SmolLM 135M IT (GPU)",
+        internalModelId = "olLM-135M-Instruct_seq128_q8_ekv1280.tflite",
+        url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.GPU,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048
     )
 
     // Add more models as needed, e.g., from the user's example list if GGUF versions are available.
     // For now, keeping it to these two as examples.
 
-    val DEFAULT_MODEL = GEMMA_2B_IT_CPU // Default model to use
+    val DEFAULT_MODEL = SMOL_135M_CPU // Default model to use
 
     fun getAllModels(): List<LlmModelConfig> {
-        return listOf(GEMMA_2B_IT_CPU, PHI_3_MINI_CPU) // Add other models here
+        return listOf(QWEN_2_5_500M_IT_CPU, SMOL_135M_CPU) // Add other models here
     }
 
     fun getLocalModelFile(context: Context, modelConfig: LlmModelConfig): File {

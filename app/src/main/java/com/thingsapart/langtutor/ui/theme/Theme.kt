@@ -63,7 +63,7 @@ val AppTypography = Typography(
 )
 
 @Composable
-fun LanguageAppTheme(
+fun LangTutorAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {

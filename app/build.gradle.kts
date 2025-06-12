@@ -63,17 +63,26 @@ dependencies {
     // Lifecycle Compose for collectAsStateWithLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
-    // TensorFlow Lite
-    implementation("org.tensorflow:tensorflow-lite:2.9.0")
-    implementation("org.tensorflow:tensorflow-lite-support:0.4.0")
-
-    // MediaPipe GenAI
+    // MediaPipe GenAI (This brings in the new 'litert-api')
     implementation(libs.mediapipe.tasks.genai)
+    // implementation("com.google.mediapipe:tasks-genai:0.10.24") // This is a duplicate, remove it
+
+    // TensorFlow Lite for custom Interpreter usage
+    implementation("org.tensorflow:tensorflow-lite:2.17.0") {
+        // Exclude the old API to prevent conflict with MediaPipe's new API
+        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+    }
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.0") {
+        // Also exclude from the support library for safety
+        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+    }
 
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.6.0")
     implementation("androidx.compose.material:material:1.6.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
+    implementation("com.google.android.material:material:1.8.0-alpha01")
+    //implementation("androidx.compose.material3:material3:1.0.0-beta03")
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.0")
     debugImplementation("androidx.compose.ui:ui-tooling:1.6.0")
@@ -93,14 +102,6 @@ dependencies {
     // Room
     val room_version = "2.7.1"
     implementation("androidx.room:room-runtime:$room_version")
-
-    // If this project uses any Kotlin source, use Kotlin Symbol Processing (KSP)
-    // See Add the KSP plugin to your project
     ksp("androidx.room:room-compiler:$room_version")
-
-    // If this project only uses Java source, use the Java annotationProcessor
-    // No additional plugins are necessary
     annotationProcessor("androidx.room:room-compiler:$room_version")
-
-    implementation("com.google.mediapipe:tasks-genai:0.10.24")
 }

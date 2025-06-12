@@ -26,6 +26,9 @@ interface ChatDao {
     @Query("SELECT * FROM conversations WHERE id = :conversationId") // Added this method
     fun getConversationById(conversationId: String): Flow<ChatConversationEntity?>
 
+    @Query("SELECT * FROM conversations WHERE targetLanguageCode = :languageCode AND topicId = :topicId LIMIT 1")
+    fun getConversationByLanguageAndTopic(languageCode: String, topicId: String): Flow<ChatConversationEntity?>
+
     // Optional: Example delete methods
     @Query("DELETE FROM conversations WHERE id = :conversationId")
     suspend fun deleteConversation(conversationId: String)
