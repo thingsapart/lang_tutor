@@ -13,6 +13,12 @@ import com.thingsapart.langtutor.data.UserSettingsRepository
 import com.thingsapart.langtutor.llm.LiteRtLlmService
 import com.thingsapart.langtutor.llm.ModelDownloader
 import com.thingsapart.langtutor.ui.AppNavigator
+import com.thingsapart.langtutor.llm.LlmModelConfig
+import com.thingsapart.langtutor.llm.LlmService
+import com.thingsapart.langtutor.llm.MediaPipeLlmService
+import com.thingsapart.langtutor.llm.ModelManager
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
 
@@ -24,8 +30,19 @@ class MainActivity : ComponentActivity() {
         userSettingsRepository = UserSettingsRepository(applicationContext)
         val database = AppDatabase.getInstance(applicationContext)
         val modelDownloader = ModelDownloader() // Added
-        // Initialize LlmService
-        val llmService = LiteRtLlmService(applicationContext, modelDownloader = modelDownloader) // Modified
+
+        // Initialize LlmService dynamically
+        val llmService: LlmService = runBlocking { // Use runBlocking for simplicity here
+            val selectedModelId = userSettingsRepository.getSelectedModel().first()
+            val modelConfig = ModelManager.getAllModels().find { it.internalModelId == selectedModelId } ?: ModelManager.DEFAULT_MODEL
+
+            if (modelConfig.llmBackend == com.thingsapart.langtutor.llm.LlmBackend.MEDIA_PIPE) {
+                MediaPipeLlmService(applicationContext, modelDownloader, modelConfig)
+            } else {
+                LiteRtLlmService(applicationContext, modelDownloader, modelConfig)
+            }
+        }
+
         // Provide LlmService to ChatRepository
         chatRepository = com.thingsapart.langtutor.data.ChatRepository(
             database.chatDao(),

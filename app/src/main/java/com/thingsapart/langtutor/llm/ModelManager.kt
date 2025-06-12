@@ -17,6 +17,10 @@ enum class ModelBackend {
     CPU, GPU
 }
 
+enum class LlmBackend {
+    MEDIA_PIPE, LITE_RT
+}
+
 data class LlmModelConfig(
     val modelName: String, // User-friendly name
     val internalModelId: String, // Unique ID, also used as filename
@@ -24,6 +28,7 @@ data class LlmModelConfig(
     val licenseUrl: String,
     val needsAuth: Boolean, // Future use for HuggingFace token etc.
     val preferredBackend: ModelBackend?,
+    val llmBackend: LlmBackend, // New field
     val temperature: Float,
     val topK: Int,
     val topP: Float,
@@ -94,6 +99,7 @@ object ModelManager {
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.LITE_RT, // New field added
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,
@@ -112,6 +118,7 @@ object ModelManager {
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.GPU,
+        llmBackend = LlmBackend.LITE_RT, // New field added
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,
@@ -130,6 +137,7 @@ object ModelManager {
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.LITE_RT, // New field added
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,
@@ -148,6 +156,7 @@ object ModelManager {
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.GPU,
+        llmBackend = LlmBackend.LITE_RT, // New field added
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,
@@ -159,13 +168,39 @@ object ModelManager {
         vocabFileNameInMetadata = "vocab.txt"
     )
 
+    val GEMMA_2B_IT_GPU_MEDIAPIPE_PLACEHOLDER = LlmModelConfig(
+        modelName = "Gemma 2B IT (GPU MediaPipe Placeholder)",
+        internalModelId = "gemma-2b-it-gpu-mediapipe-placeholder.tflite", // Placeholder
+        url = "https://example.com/gemma-placeholder-model", // Placeholder
+        licenseUrl = "https://example.com/gemma-license", // Placeholder
+        needsAuth = false,
+        preferredBackend = ModelBackend.GPU,
+        llmBackend = LlmBackend.MEDIA_PIPE, // Crucial for this test
+        temperature = 0.7f,
+        topK = 40,
+        topP = 0.9f,
+        maxTokens = 1024,
+        thinkingIndicator = true, // Or false, as appropriate
+        // LiteRT specific fields can be default or 0/null as they won't be used by MediaPipeLlmService
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = ""
+    )
+
     // Add more models as needed, e.g., from the user's example list if GGUF versions are available.
     // For now, keeping it to these two as examples.
 
     val DEFAULT_MODEL = SMOL_135M_CPU // Default model to use
 
     fun getAllModels(): List<LlmModelConfig> {
-        return listOf(QWEN_2_5_500M_IT_CPU, SMOL_135M_CPU) // Add other models here
+        return listOf(
+            QWEN_2_5_500M_IT_CPU,
+            QWEN_2_5_500M_IT_GPU,
+            SMOL_135M_CPU,
+            SMOL_135M_GPU,
+            GEMMA_2B_IT_GPU_MEDIAPIPE_PLACEHOLDER
+        ) // Add other models here
     }
 
     fun getLocalModelFile(context: Context, modelConfig: LlmModelConfig): File {
