@@ -278,7 +278,7 @@ private class FakeLlmService(initialState: LlmServiceState = LlmServiceState.Rea
     }
 
     override fun resetSession() { // Changed signature
-        _serviceState.value = LlmServiceState.Idle // Or simulate re-init
+        serviceState.value = LlmServiceState.Idle // Corrected: Use public serviceState
         Log.d("FakeLlmService", "Fake session reset called (now synchronous)")
         // Optionally, simulate re-initialization if needed for preview state
         // _serviceState.value = LlmServiceState.Initializing
