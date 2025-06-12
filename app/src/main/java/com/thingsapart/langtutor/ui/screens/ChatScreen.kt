@@ -3,6 +3,7 @@ package com.thingsapart.langtutor.ui.screens
 import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items // Ensure this import is present
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
@@ -16,20 +17,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.thingsapart.langtutor.data.AppDatabase
 import com.thingsapart.langtutor.data.UserSettingsRepository
-import com.thingsapart.langtutor.data.dao.ChatDao
+// import com.thingsapart.langtutor.data.dao.ChatDao // Not directly used in this file after repository pattern
 import com.thingsapart.langtutor.data.model.ChatConversationEntity
 import com.thingsapart.langtutor.data.model.ChatMessageEntity
+import com.thingsapart.langtutor.llm.LlmService // Interface
 import com.thingsapart.langtutor.llm.LlmServiceState
-import com.thingsapart.langtutor.llm.MediaPipeLlmService
+import com.thingsapart.langtutor.llm.ModelManager // Needed for FakeLlmService example state
+// import com.thingsapart.langtutor.llm.MediaPipeLlmService // No longer directly needed if AppNav passes LlmService
 import com.thingsapart.langtutor.ui.components.ChatMessageBubble
 import com.thingsapart.langtutor.ui.components.ModelDownloadDialog
 import com.thingsapart.langtutor.ui.components.ModelDownloadDialogState
 import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import kotlinx.coroutines.delay // Added
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow // Added
 import kotlinx.coroutines.launch
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 import java.util.UUID
 
 @Composable
@@ -39,7 +42,7 @@ fun ChatScreen(
     topicId: String? = null,
     chatRepository: com.thingsapart.langtutor.data.ChatRepository,
     userSettingsRepository: UserSettingsRepository,
-    llmService: MediaPipeLlmService // Added
+    llmService: LlmService // Changed to LlmService interface
 ) {
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
@@ -54,17 +57,13 @@ fun ChatScreen(
     val messages by messagesFlow.collectAsState(initial = emptyList())
     var inputText by remember { mutableStateOf("") }
 
-    // LLM Service State & Dialog Management
     val llmState by llmService.serviceState.collectAsStateWithLifecycle()
     var downloadDialogController by remember { mutableStateOf(ModelDownloadDialogState(showDialog = false)) }
 
     LaunchedEffect(llmService) {
-        // Initialize the service if it's idle or in an error state from a previous attempt with a different model.
-        // Or if we want to ensure a specific model for this chat screen is loaded.
-        // For now, let's assume one global llmService instance, initialize if Idle.
         if (llmState is LlmServiceState.Idle || llmState is LlmServiceState.Error) {
              Log.d("ChatScreen", "Attempting to initialize LLM Service from ChatScreen.")
-             launch { // Use a new coroutine for suspend function
+             launch {
                 llmService.initialize()
             }
         }
@@ -86,29 +85,20 @@ fun ChatScreen(
                 downloadDialogController = ModelDownloadDialogState(
                     showDialog = true,
                     modelInfo = currentLlmState.modelBeingProcessed,
-                    progress = downloadDialogController.progress, // Keep last progress
+                    progress = downloadDialogController.progress,
                     isComplete = false,
                     errorMessage = currentLlmState.message
                 )
             }
             LlmServiceState.Ready -> {
                 if (downloadDialogController.showDialog && !downloadDialogController.isComplete && downloadDialogController.errorMessage == null) {
-                    // If dialog was showing for download, mark as complete
                      downloadDialogController = downloadDialogController.copy(isComplete = true, progress = 100f)
                 } else if (downloadDialogController.errorMessage != null) {
-                    // If an error was shown, and then it became ready (e.g. retry outside dialog), hide dialog.
                     downloadDialogController = downloadDialogController.copy(showDialog = false)
                 }
             }
             LlmServiceState.Idle, LlmServiceState.Initializing -> {
-                // Can show a generic loading or just wait for download/ready state
-                 if (downloadDialogController.showDialog && !downloadDialogController.isComplete) {
-                    // If dialog is already showing (e.g. for a download that was cancelled and service reset)
-                    // update it to reflect initializing or hide it.
-                    // For now, let's assume it might briefly show "Initializing" if a download was cancelled.
-                    // Or simply:
-                    // downloadDialogController = downloadDialogController.copy(showDialog = false)
-                 }
+                 // Handled by other states or initial view
             }
         }
     }
@@ -119,21 +109,21 @@ fun ChatScreen(
             onDismissRequest = { downloadDialogController = downloadDialogController.copy(showDialog = false) },
             onRetry = { modelInfo ->
                 Log.d("ChatScreen", "Retry download for model: ${modelInfo?.modelName}")
-                downloadDialogController = downloadDialogController.copy(errorMessage = null, progress = 0f) // Reset error and progress
-                coroutineScope.launch { llmService.initialize() } // Re-trigger initialization
+                downloadDialogController = downloadDialogController.copy(errorMessage = null, progress = 0f)
+                coroutineScope.launch { llmService.initialize() }
             }
         )
     }
 
-
     LaunchedEffect(key1 = chatId, key2 = languageCode, key3 = topicId) {
         if (chatId != null) {
             currentChatId = chatId
-            conversationTitle = "Chat with Buddy" // Placeholder
+            // Fetch title if needed: chatRepository.getConversationTitle(chatId).collect { title -> conversationTitle = title }
+            conversationTitle = "Chat" // Placeholder, real title would be fetched
         } else if (languageCode != null && topicId != null) {
             val newConversationId = UUID.randomUUID().toString()
             currentChatId = newConversationId
-            conversationTitle = "$languageCode: $topicId"
+            conversationTitle = "$languageCode: $topicId" // Example title
             val newConversation = ChatConversationEntity(
                 id = newConversationId,
                 targetLanguageCode = languageCode,
@@ -143,16 +133,14 @@ fun ChatScreen(
                 userProfileImageUrl = null,
                 conversationTitle = conversationTitle
             )
-            if (llmState is LlmServiceState.Ready) { // Only start if LLM is ready
+            if (llmState is LlmServiceState.Ready) {
                  Log.d("ChatScreen", "LLM Ready, starting new conversation via repository.")
                 chatRepository.startNewConversation(newConversation)
             } else {
-                Log.w("ChatScreen", "LLM not ready when trying to start new conversation. State: $llmState. User will need to send first message manually or wait.")
-                // Optionally, save the conversation without the initial AI message,
-                // or wait for LLM to be ready and then trigger.
-                // For now, just log. The user can initiate by sending a message once LLM is ready.
-                 chatDao.insertConversation(newConversation) // Insert basic conversation details
-                 chatDao.updateConversationSummary(newConversation.id, "Conversation created. Waiting for AI.", System.currentTimeMillis())
+                Log.w("ChatScreen", "LLM not ready for new conversation. State: $llmState. TODO: Handle this, e.g. save locally.")
+                // chatDao.insertConversation(newConversation) // Example of direct DAO use, to be removed
+                // chatDao.updateConversationSummary(newConversation.id, "Conversation created. Waiting for AI.", System.currentTimeMillis())
+                Log.w("ChatScreen", "TODO: Implement conversation creation via ChatRepository when LLM is not ready.")
             }
         }
     }
@@ -194,7 +182,6 @@ fun ChatScreen(
                             }
                         }
                     },
-                    // Updated enabled logic
                     enabled = currentChatId != null && llmState is LlmServiceState.Ready
                 ) {
                     Icon(Icons.Filled.Send, contentDescription = "Send message")
@@ -208,7 +195,7 @@ fun ChatScreen(
             reverseLayout = true,
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
         ) {
-            messages.reversed().forEach { message ->
+            items(messages.reversed(), key = { it.id }) { message ->
                 ChatMessageBubble(
                     messageText = message.text,
                     isUserMessage = message.isUserMessage,
@@ -226,12 +213,11 @@ fun ChatScreen(
 @Composable
 fun ChatScreenPreview_ExistingChat() {
     val context = LocalContext.current
-    val mockLlmService: MediaPipeLlmService = mock()
-    whenever(mockLlmService.serviceState).thenReturn(MutableStateFlow(LlmServiceState.Ready))
+    val previewLlmService: LlmService = FakeLlmService()
 
     val dummyRepo = com.thingsapart.langtutor.data.ChatRepository(
-        AppDatabase.getInstance(context).chatDao(),
-        mockLlmService // Pass the mocked LlmService
+        AppDatabase.getInstance(context).chatDao(), // Assuming ChatDao is accessible for preview
+        previewLlmService
     )
     val dummyUserSettingsRepo = UserSettingsRepository(context)
     LanguageAppTheme {
@@ -239,7 +225,7 @@ fun ChatScreenPreview_ExistingChat() {
             chatId = "previewChatId",
             chatRepository = dummyRepo,
             userSettingsRepository = dummyUserSettingsRepo,
-            llmService = mockLlmService // Pass the mocked LlmService
+            llmService = previewLlmService
         )
     }
 }
@@ -248,15 +234,11 @@ fun ChatScreenPreview_ExistingChat() {
 @Composable
 fun ChatScreenPreview_NewChatFromTopic() {
     val context = LocalContext.current
-    val mockLlmService: MediaPipeLlmService = mock()
-    whenever(mockLlmService.serviceState).thenReturn(MutableStateFlow(LlmServiceState.Ready))
-    // Simulate a model that requires download for this preview if needed for dialog testing
-    // whenever(mockLlmService.serviceState).thenReturn(MutableStateFlow(LlmServiceState.Downloading(ModelManager.DEFAULT_MODEL, 50f)))
-
+    val previewLlmService: LlmService = FakeLlmService(LlmServiceState.Downloading(ModelManager.DEFAULT_MODEL, 50f))
 
     val dummyRepo = com.thingsapart.langtutor.data.ChatRepository(
-        AppDatabase.getInstance(context).chatDao(),
-        mockLlmService
+        AppDatabase.getInstance(context).chatDao(), // Assuming ChatDao is accessible for preview
+        previewLlmService
     )
     val dummyUserSettingsRepo = UserSettingsRepository(context)
     LanguageAppTheme {
@@ -266,10 +248,45 @@ fun ChatScreenPreview_NewChatFromTopic() {
             topicId = "greetings",
             chatRepository = dummyRepo,
             userSettingsRepository = dummyUserSettingsRepo,
-            llmService = mockLlmService
+            llmService = previewLlmService
         )
     }
 }
 
-// Dummy DAO for previewing ChatScreen when LLM is not ready
-private val chatDao: ChatDao = mock()
+private class FakeLlmService(initialState: LlmServiceState = LlmServiceState.Ready) : LlmService {
+    override val serviceState = MutableStateFlow(initialState)
+
+    override suspend fun initialize() {
+        serviceState.value = LlmServiceState.Initializing
+        delay(100) // Simulate some work
+        serviceState.value = LlmServiceState.Ready
+        Log.d("FakeLlmService", "Fake initialized")
+    }
+
+    override fun generateResponse(prompt: String, conversationId: String, targetLanguage: String): Flow<String> {
+        Log.d("FakeLlmService", "Fake generateResponse called with prompt: $prompt")
+        return flow {
+            emit("This is a fake response to: ")
+            delay(50)
+            emit(prompt.take(50) + "...")
+        }
+    }
+
+    override suspend fun getInitialGreeting(topic: String, targetLanguage: String): String {
+        Log.d("FakeLlmService", "Fake getInitialGreeting for topic: $topic")
+        return "Hello! Let's talk about $topic in $targetLanguage. (Fake)"
+    }
+
+    override fun resetSession() { // Changed signature
+        serviceState.value = LlmServiceState.Idle // Corrected: Use public serviceState
+        Log.d("FakeLlmService", "Fake session reset called (now synchronous)")
+        // Optionally, simulate re-initialization if needed for preview state
+        // _serviceState.value = LlmServiceState.Initializing
+        // _serviceState.value = LlmServiceState.Ready
+    }
+
+    override fun close() {
+        serviceState.value = LlmServiceState.Idle
+        Log.d("FakeLlmService", "Fake closed")
+    }
+}

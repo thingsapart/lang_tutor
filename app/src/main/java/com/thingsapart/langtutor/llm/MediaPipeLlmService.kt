@@ -3,16 +3,17 @@ package com.thingsapart.langtutor.llm
 import android.content.Context
 import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
-import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
-import com.google.mediapipe.tasks.genai.llminference.ProgressListener
+import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession // Restored
+import com.google.mediapipe.tasks.genai.llminference.ProgressListener // Restored
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+// Removed: import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
-// Removed: import kotlinx.coroutines.flow.flow
 import java.io.File
+// Removed: import kotlinx.coroutines.channels.SendChannel
 
 // Sealed interface LlmServiceState (assuming it's in the same package or imported)
 // No change to LlmServiceState itself in this step.
@@ -26,7 +27,7 @@ class MediaPipeLlmService(
     override val serviceState: StateFlow<LlmServiceState> = _serviceState.asStateFlow()
 
     private var llmInference: LlmInference? = null
-    private var llmSession: LlmInferenceSession? = null // Added session member
+    private var llmSession: LlmInferenceSession? = null // Restored
 
     companion object {
         private const val TAG = "MediaPipeLlmService"
@@ -36,7 +37,10 @@ class MediaPipeLlmService(
     override suspend fun initialize() {
         Log.i(TAG, "initialize called. Current state: ${_serviceState.value}")
         // Close existing session and engine before re-initializing
-        close() // Ensures a clean slate by calling our enhanced close()
+        llmSession?.close()
+        llmSession = null
+        llmInference?.close()
+        llmInference = null
 
         _serviceState.value = LlmServiceState.Initializing
         Log.i(TAG, "Initializing for model: ${modelConfig.modelName}")
@@ -67,32 +71,34 @@ class MediaPipeLlmService(
 
         try {
             Log.i(TAG, "Creating LlmInference engine for ${modelConfig.modelName} at ${modelFile.absolutePath}")
-            val optionsBuilder = LlmInference.LlmInferenceOptions.builder()
+            val inferenceOptionsBuilder = LlmInference.LlmInferenceOptions.builder()
                 .setModelPath(modelFile.absolutePath)
+                .setMaxTokens(modelConfig.maxTokens) // Output tokens
 
             ModelManager.mapToMediaPipeBackend(modelConfig.preferredBackend)?.let {
-                optionsBuilder.setPreferredBackend(it)
+                inferenceOptionsBuilder.setPreferredBackend(it)
                 Log.i(TAG, "Set preferred backend to: $it")
             }
+            // Example: inferenceOptionsBuilder.setPreferredBackend(LlmInference.Backend.GPU)
 
-            val options = optionsBuilder
-                .setPreferredBackend(LlmInference.Backend.GPU)
-                .setMaxTopK(modelConfig.topK)
-                .setMaxTokens(modelConfig.maxTokens)
-                .build()
-            llmInference = LlmInference.createFromOptions(context, options)
-            Log.i(TAG, "LlmInference engine created. Creating session...")
+            val inferenceOptions = inferenceOptionsBuilder.build()
+            llmInference = LlmInference.createFromOptions(context, inferenceOptions)
+            Log.i(TAG, "LlmInference engine created for ${modelConfig.modelName}.")
 
-            // Create and configure LlmInferenceSession
-            llmSession = llmInference?.createSession()
-            // Apply session-specific configurations
-            llmSession?.configure(
-                temperature = modelConfig.temperature,
-                topK = modelConfig.topK,
-                topP = modelConfig.topP,
-                maxTokens = modelConfig.maxTokens
-            )
-            Log.i(TAG, "LlmInferenceSession created and configured for ${modelConfig.modelName}.")
+            // Now create the session
+            Log.i(TAG, "Creating LlmInferenceSession...")
+            val sessionOptionsBuilder = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                .setTemperature(modelConfig.temperature)
+                .setTopK(modelConfig.topK)
+                .setTopP(modelConfig.topP)
+                // maxTokens is typically an engine-level option for total output length,
+                // but if session options also expose it for context window or other, review API.
+                // For now, following user's previous structure where maxTokens was on engine.
+
+            val sessionOptions = sessionOptionsBuilder.build()
+            llmSession = LlmInferenceSession.createFromOptions(llmInference, sessionOptions) // Create session from engine
+
+            Log.i(TAG, "LlmInferenceSession created for ${modelConfig.modelName}.")
             _serviceState.value = LlmServiceState.Ready
             Log.i(TAG, "MediaPipe LlmService initialized successfully and is Ready.")
 
@@ -100,53 +106,53 @@ class MediaPipeLlmService(
             val errorMsg = "Failed to initialize MediaPipe LLM engine or session for ${modelConfig.modelName}: ${e.message}"
             Log.e(TAG, errorMsg, e)
             _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
-            close() // Clean up engine if session creation failed
+            close()
         }
     }
 
-    // Updated: Add override and implement with LlmInferenceSession
     override fun generateResponse(prompt: String, conversationId: String, targetLanguage: String): Flow<String> {
         if (_serviceState.value !is LlmServiceState.Ready || llmSession == null) {
             val errorMsg = "LlmService is not ready or session is null. Current state: ${_serviceState.value}"
             Log.w(TAG, "generateResponse called when not ready: $errorMsg")
-            return callbackFlow { throw IllegalStateException(errorMsg) } // callbackFlow requires throw, not just emit
+            return callbackFlow { throw IllegalStateException(errorMsg) }
         }
 
-        // TODO: Incorporate conversationId and targetLanguage into the prompt or session management
-        // For now, targetLanguage is informational. ConversationId might be used for future context window.
         val fullPrompt = "User: $prompt\nAI:" // Simple prompt, refine as needed
         Log.d(TAG, "Generating response for prompt: \"$fullPrompt\" with model ${modelConfig.modelName}")
 
         return callbackFlow {
-            val progressListener = ProgressListener { partialResult, done ->
-                Log.v(TAG, "Partial result: $partialResult, Done: $done")
-                trySend(partialResult)
-                if (done) {
-                    channel.close()
-                    Log.d(TAG, "Response generation completed and channel closed.")
+            val progressListener = ProgressListener<String> { partialResult, done ->
+                Log.v(TAG, "ProgressListener: Partial='$partialResult', Done=$done")
+                try {
+                    channel.trySend(partialResult).isSuccess
+                    if (done) {
+                        channel.close()
+                        Log.d(TAG, "ProgressListener: Channel closed.")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "ProgressListener: Error sending to channel", e)
+                    channel.close(e)
                 }
             }
 
             try {
-                llmSession?.generateResponseAsync(fullPrompt, progressListener)
+                 llmSession?.addQueryChunk(fullPrompt) // Add query chunk first
+                 llmSession?.generateResponseAsync(progressListener) // Then call generateResponseAsync without prompt
             } catch (e: Exception) {
-                Log.e(TAG, "Exception during generateResponseAsync: ${e.message}", e)
-                channel.close(e) // Close channel with exception
+                Log.e(TAG, "Exception calling generateResponseAsync: ${e.message}", e)
+                channel.close(e)
             }
 
-            awaitClose { Log.d(TAG, "callbackFlow awaitClose for generateResponse.") }
+            awaitClose { Log.d(TAG, "callbackFlow awaitClose for prompt: \"$fullPrompt\"") }
         }
     }
 
-    // Updated: Add override and implement using the new generateResponse
     override suspend fun getInitialGreeting(topic: String, targetLanguage: String): String {
-         if (_serviceState.value !is LlmServiceState.Ready || llmSession == null) {
+         if (_serviceState.value !is LlmServiceState.Ready || llmSession == null) { // Check llmSession
             val errorMsg = "LlmService is not ready or session is null when getting initial greeting. State: ${_serviceState.value}"
             Log.w(TAG, errorMsg)
-            // Fallback or throw. For now, a simple fallback.
             return "Hello! I'm currently unable to generate a full greeting. Let's talk about $topic."
         }
-        // Construct a prompt for a greeting. This can be more sophisticated.
         val greetingPrompt = "Generate a friendly, engaging opening message for a conversation about '$topic' in $targetLanguage."
         Log.i(TAG, "Requesting initial greeting for topic: $topic, language: $targetLanguage")
 
@@ -170,35 +176,34 @@ class MediaPipeLlmService(
         }
     }
 
-    // Added: New method from interface
-    override fun resetSession() {
+    override fun resetSession() { // Changed signature to override fun
+        Log.i(TAG, "resetSession called.")
         if (llmInference == null) {
-            Log.w(TAG, "Reset session called when LlmInference engine is not initialized. Aborting.")
-            // Optionally, trigger initialize() or set error state
-            // _serviceState.value = LlmServiceState.Error("Cannot reset session, engine not initialized.", modelConfig)
+            Log.e(TAG, "Cannot reset session because LlmInference engine is null. Service needs initialization.")
+            _serviceState.value = LlmServiceState.Error("Reset failed: LLM engine not initialized.", modelConfig)
             return
         }
-        Log.i(TAG, "Resetting LlmInferenceSession for model ${modelConfig.modelName}.")
+        _serviceState.value = LlmServiceState.Initializing // Or a new "Resetting" state if desired
         try {
-            llmSession?.close() // Close existing session
-            llmSession = llmInference?.createSession() // Create a new one
-            llmSession?.configure( // Re-apply configurations
-                temperature = modelConfig.temperature,
-                topK = modelConfig.topK,
-                topP = modelConfig.topP,
-                maxTokens = modelConfig.maxTokens
-            )
-            _serviceState.value = LlmServiceState.Ready // Assuming session recreation implies Ready
+            llmSession?.close()
+            val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                .setTemperature(modelConfig.temperature)
+                .setTopK(modelConfig.topK)
+                .setTopP(modelConfig.topP)
+                .build()
+
+            // llmInference is confirmed not null here by the check above
+            llmSession = LlmInferenceSession.createFromOptions(llmInference!!, sessionOptions)
+            _serviceState.value = LlmServiceState.Ready
+
             Log.i(TAG, "LlmInferenceSession reset and configured successfully.")
         } catch (e: Exception) {
             val errorMsg = "Failed to reset LlmInferenceSession: ${e.message}"
             Log.e(TAG, errorMsg, e)
             _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
-            close() // Critical failure, close everything
         }
     }
 
-    // Updated: Add override, close session first
     override fun close() {
         Log.i(TAG, "close() called for ${modelConfig.modelName}. Current state: ${_serviceState.value}")
         try {
@@ -217,7 +222,7 @@ class MediaPipeLlmService(
         }
         llmInference = null
 
-        if(_serviceState.value !is LlmServiceState.Idle) { // Only log if it wasn't already idle.
+        if (_serviceState.value !is LlmServiceState.Idle) {
             _serviceState.value = LlmServiceState.Idle
             Log.i(TAG, "MediaPipeLlmService closed and state set to Idle.")
         } else {

@@ -8,7 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.languageapp.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 
 @Composable
 fun ReturningUserScreen(
