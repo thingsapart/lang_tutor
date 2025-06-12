@@ -277,9 +277,12 @@ private class FakeLlmService(initialState: LlmServiceState = LlmServiceState.Rea
         return "Hello! Let's talk about $topic in $targetLanguage. (Fake)"
     }
 
-    override suspend fun resetSession() {
-        serviceState.value = LlmServiceState.Idle
-        Log.d("FakeLlmService", "Fake session reset")
+    override fun resetSession() { // Changed signature
+        _serviceState.value = LlmServiceState.Idle // Or simulate re-init
+        Log.d("FakeLlmService", "Fake session reset called (now synchronous)")
+        // Optionally, simulate re-initialization if needed for preview state
+        // _serviceState.value = LlmServiceState.Initializing
+        // _serviceState.value = LlmServiceState.Ready
     }
 
     override fun close() {

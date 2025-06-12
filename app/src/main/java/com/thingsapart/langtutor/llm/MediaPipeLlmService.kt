@@ -136,9 +136,8 @@ class MediaPipeLlmService(
             }
 
             try {
-                 // llmSession?.addQueryChunk(fullPrompt) // This seems to be for a different API pattern (non-async or specific sequence)
-                 // For generateResponseAsync with ProgressListener, just call it.
-                 llmSession?.generateResponseAsync(fullPrompt, progressListener)
+                 llmSession?.addQueryChunk(fullPrompt) // Add query chunk first
+                 llmSession?.generateResponseAsync(progressListener) // Then call generateResponseAsync without prompt
             } catch (e: Exception) {
                 Log.e(TAG, "Exception calling generateResponseAsync: ${e.message}", e)
                 channel.close(e)
@@ -177,36 +176,29 @@ class MediaPipeLlmService(
         }
     }
 
-    // Make it suspend as per plan
-    override suspend fun resetSession() {
-        Log.i(TAG, "Resetting LlmInferenceSession for model ${modelConfig.modelName}.")
+    override fun resetSession() { // Changed signature to override fun
+        Log.i(TAG, "resetSession called.")
         if (llmInference == null) {
-            Log.w(TAG, "LlmInference engine is null, cannot reset session. Initialize first.")
-            _serviceState.value = LlmServiceState.Error("Cannot reset session, engine not initialized.", modelConfig)
+            Log.e(TAG, "Cannot reset session because LlmInference engine is null. Service needs initialization.")
+            _serviceState.value = LlmServiceState.Error("Reset failed: LLM engine not initialized.", modelConfig)
             return
         }
+        _serviceState.value = LlmServiceState.Initializing // Or a new "Resetting" state if desired
         try {
-            llmSession?.close() // Close existing session
-            Log.d(TAG, "Old LlmInferenceSession closed.")
-
-            // Create new session options
-            val sessionOptionsBuilder = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+            llmSession?.close()
+            val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTemperature(modelConfig.temperature)
                 .setTopK(modelConfig.topK)
                 .setTopP(modelConfig.topP)
-            // .setMaxTokens(...) // Assuming this is not a session option based on current understanding
-
-            val sessionOptions = sessionOptionsBuilder.build()
-            llmSession = llmInference?.createFromOptions(sessionOptions) // Create a new session
-
-            _serviceState.value = LlmServiceState.Ready // Assuming session recreation implies Ready
+                .build()
+            // llmInference is confirmed not null here by the check above
+            llmSession = LlmInferenceSession.createFromOptions(llmInference!!, sessionOptions)
+            _serviceState.value = LlmServiceState.Ready
             Log.i(TAG, "LlmInferenceSession reset and configured successfully.")
         } catch (e: Exception) {
             val errorMsg = "Failed to reset LlmInferenceSession: ${e.message}"
             Log.e(TAG, errorMsg, e)
             _serviceState.value = LlmServiceState.Error(errorMsg, modelConfig)
-            // Consider closing llmInference here if session reset is critical and failed severely
-            // close() // This would close both session and engine
         }
     }
 
