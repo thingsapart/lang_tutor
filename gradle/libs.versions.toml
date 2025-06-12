@@ -8,7 +8,7 @@ espressoCore = "3.6.1"
 appcompat = "1.7.1"
 material = "1.12.0"
 lifecycleRuntimeComposeAndroid = "2.9.1"
-mediapipe-tasks-genai = "0.10.22" # Or a more recent stable version
+mediapipe-tasks-genai = "0.10.24"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }

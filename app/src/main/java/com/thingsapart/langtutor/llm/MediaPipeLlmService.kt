@@ -96,7 +96,7 @@ class MediaPipeLlmService(
                 // For now, following user's previous structure where maxTokens was on engine.
 
             val sessionOptions = sessionOptionsBuilder.build()
-            llmSession = llmInference?.createFromOptions(sessionOptions) // Create session from engine
+            llmSession = LlmInferenceSession.createFromOptions(llmInference, sessionOptions) // Create session from engine
 
             Log.i(TAG, "LlmInferenceSession created for ${modelConfig.modelName}.")
             _serviceState.value = LlmServiceState.Ready
@@ -191,9 +191,11 @@ class MediaPipeLlmService(
                 .setTopK(modelConfig.topK)
                 .setTopP(modelConfig.topP)
                 .build()
+
             // llmInference is confirmed not null here by the check above
             llmSession = LlmInferenceSession.createFromOptions(llmInference!!, sessionOptions)
             _serviceState.value = LlmServiceState.Ready
+
             Log.i(TAG, "LlmInferenceSession reset and configured successfully.")
         } catch (e: Exception) {
             val errorMsg = "Failed to reset LlmInferenceSession: ${e.message}"
