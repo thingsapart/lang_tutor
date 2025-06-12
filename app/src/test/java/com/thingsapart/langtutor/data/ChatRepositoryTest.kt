@@ -9,8 +9,11 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import kotlinx.coroutines.flow.first
+import org.junit.Assert.*
 import org.mockito.kotlin.* // Ensure all mockito-kotlin functions are available
 import java.io.IOException // For testing exception case
+
 
 @ExperimentalCoroutinesApi
 class ChatRepositoryTest {
@@ -121,5 +124,43 @@ class ChatRepositoryTest {
         assertEquals(testConversationId, capturedMessage.conversationId)
         assertEquals(expectedDefaultGreeting, capturedMessage.text)
         assertFalse(capturedMessage.isUserMessage)
+    }
+
+    @Test
+    fun `getConversationByLanguageAndTopic returns conversation when DAO finds one`() = runTest {
+        val languageCode = "es"
+        val topicId = "greetings"
+        val expectedConversation = ChatConversationEntity(
+            id = "1",
+            targetLanguageCode = languageCode,
+            topicId = topicId,
+            lastMessage = "Hola",
+            lastMessageTimestamp = System.currentTimeMillis(),
+            userProfileImageUrl = null,
+            conversationTitle = "Spanish Greetings"
+        )
+
+        whenever(chatDao.getConversationByLanguageAndTopic(languageCode, topicId))
+            .thenReturn(flowOf(expectedConversation))
+
+        val result = chatRepository.getConversationByLanguageAndTopic(languageCode, topicId).first()
+
+        assertNotNull(result)
+        assertEquals(expectedConversation.id, result?.id)
+        assertEquals(languageCode, result?.targetLanguageCode)
+        assertEquals(topicId, result?.topicId)
+    }
+
+    @Test
+    fun `getConversationByLanguageAndTopic returns null when DAO finds none`() = runTest {
+        val languageCode = "fr"
+        val topicId = "travel"
+
+        whenever(chatDao.getConversationByLanguageAndTopic(languageCode, topicId))
+            .thenReturn(flowOf(null)) // DAO returns flow of null
+
+        val result = chatRepository.getConversationByLanguageAndTopic(languageCode, topicId).first()
+
+        assertNull(result)
     }
 }
