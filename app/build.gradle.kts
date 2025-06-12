@@ -68,6 +68,9 @@ dependencies {
     implementation(libs.litert.support)
     implementation(libs.litert.metadata)
 
+    // MediaPipe
+    implementation("com.google.mediapipe:tasks-genai:latest.release")
+
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.6.0")
     implementation("androidx.compose.material:material:1.6.0")
