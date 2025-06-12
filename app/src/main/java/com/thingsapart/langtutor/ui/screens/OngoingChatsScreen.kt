@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.thingsapart.langtutor.data.model.ChatConversationEntity
 import com.thingsapart.langtutor.ui.components.ChatListItem
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 import kotlinx.coroutines.flow.Flow
 import java.text.SimpleDateFormat
 import java.util.*
@@ -109,7 +109,7 @@ fun OngoingChatsScreenPreview() {
             userProfileImageUrl = null
         )
     )
-    LanguageAppTheme {
+    LangTutorAppTheme {
          Scaffold(
             topBar = {
                 TopAppBar(

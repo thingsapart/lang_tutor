@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.thingsapart.langtutor.ui.components.TopicCard
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 data class Topic(val name: String, val id: String, val imageUrl: String)
 
@@ -83,7 +83,7 @@ fun TopicSelectorScreen(
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 fun TopicSelectorScreenPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         TopicSelectorScreen(onTopicSelected = {})
     }
 }
@@ -91,7 +91,7 @@ fun TopicSelectorScreenPreview() {
 @Preview(showBackground = true, widthDp = 480, heightDp = 800, name = "Tablet Preview")
 @Composable
 fun TopicSelectorScreenTabletPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         Scaffold(
             topBar = {
                 TopAppBar(

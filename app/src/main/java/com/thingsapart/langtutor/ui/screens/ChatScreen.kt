@@ -30,16 +30,54 @@ import com.thingsapart.langtutor.ui.components.MetallicPanelGradientBackground /
 import com.thingsapart.langtutor.ui.components.ModelDownloadDialog
 import com.thingsapart.langtutor.ui.components.ModelDownloadDialogState
 import com.thingsapart.langtutor.ui.theme.AiBubbleColor
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 import com.thingsapart.langtutor.ui.theme.SomeDarkColorForText
 import com.thingsapart.langtutor.ui.theme.UserBubbleColor
-import kotlinx.coroutines.delay // Added
+import kotlinx.coroutines.delay
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.firstOrNull // Added import
-import kotlinx.coroutines.flow.flow // Added
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import java.util.UUID
+
+class FakeLlmService(initialState: LlmServiceState = LlmServiceState.Ready) : LlmService {
+    override val serviceState = MutableStateFlow(initialState)
+
+    override suspend fun initialize() {
+        serviceState.value = LlmServiceState.Initializing
+        delay(100) // Simulate some work
+        serviceState.value = LlmServiceState.Ready
+        Log.d("FakeLlmService", "Fake initialized")
+    }
+
+    override fun generateResponse(prompt: String, conversationId: String, targetLanguage: String): Flow<String> {
+        Log.d("FakeLlmService", "Fake generateResponse called with prompt: $prompt")
+        return flow {
+            emit("This is a fake response to: ")
+            delay(50)
+            emit(prompt.take(50) + "...")
+        }
+    }
+
+    override suspend fun getInitialGreeting(topic: String, targetLanguage: String): String {
+        Log.d("FakeLlmService", "Fake getInitialGreeting for topic: $topic")
+        return "Hello! Let's talk about $topic in $targetLanguage. (Fake)"
+    }
+
+    override fun resetSession() { // Changed signature
+        serviceState.value = LlmServiceState.Idle // Corrected: Use public serviceState
+        Log.d("FakeLlmService", "Fake session reset called (now synchronous)")
+        // Optionally, simulate re-initialization if needed for preview state
+        // _serviceState.value = LlmServiceState.Initializing
+        // _serviceState.value = LlmServiceState.Ready
+    }
+
+    override fun close() {
+        serviceState.value = LlmServiceState.Idle
+        Log.d("FakeLlmService", "Fake closed")
+    }
+}
 
 @Composable
 fun ChatScreen(
@@ -75,8 +113,8 @@ fun ChatScreen(
 
     LaunchedEffect(llmService) {
         if (llmState is LlmServiceState.Idle || llmState is LlmServiceState.Error) {
-             Log.d("ChatScreen", "Attempting to initialize LLM Service from ChatScreen.")
-             launch {
+            Log.d("ChatScreen", "Attempting to initialize LLM Service from ChatScreen.")
+            launch {
                 llmService.initialize()
             }
         }
@@ -94,6 +132,7 @@ fun ChatScreen(
                     errorMessage = null
                 )
             }
+
             is LlmServiceState.Error -> {
                 downloadDialogController = ModelDownloadDialogState(
                     showDialog = true,
@@ -103,15 +142,18 @@ fun ChatScreen(
                     errorMessage = currentLlmState.message
                 )
             }
+
             LlmServiceState.Ready -> {
                 if (downloadDialogController.showDialog && !downloadDialogController.isComplete && downloadDialogController.errorMessage == null) {
-                     downloadDialogController = downloadDialogController.copy(isComplete = true, progress = 100f)
+                    downloadDialogController =
+                        downloadDialogController.copy(isComplete = true, progress = 100f)
                 } else if (downloadDialogController.errorMessage != null) {
                     downloadDialogController = downloadDialogController.copy(showDialog = false)
                 }
             }
+
             LlmServiceState.Idle, LlmServiceState.Initializing -> {
-                 // Handled by other states or initial view
+                // Handled by other states or initial view
             }
         }
     }
@@ -119,10 +161,13 @@ fun ChatScreen(
     if (downloadDialogController.showDialog) {
         ModelDownloadDialog(
             state = downloadDialogController,
-            onDismissRequest = { downloadDialogController = downloadDialogController.copy(showDialog = false) },
+            onDismissRequest = {
+                downloadDialogController = downloadDialogController.copy(showDialog = false)
+            },
             onRetry = { modelInfo ->
                 Log.d("ChatScreen", "Retry download for model: ${modelInfo?.modelName}")
-                downloadDialogController = downloadDialogController.copy(errorMessage = null, progress = 0f)
+                downloadDialogController =
+                    downloadDialogController.copy(errorMessage = null, progress = 0f)
                 coroutineScope.launch { llmService.initialize() }
             }
         )
@@ -132,12 +177,15 @@ fun ChatScreen(
         if (chatId != null) {
             currentChatId = chatId
             // Fetch title if needed
-            chatRepository.getConversationById(chatId).collect { conversation -> // Assuming getConversationById exists in repo and returns Flow<ChatConversationEntity?>
-                conversationTitle = conversation?.conversationTitle ?: "Chat"
-            }
+            chatRepository.getConversationById(chatId)
+                .collect { conversation -> // Assuming getConversationById exists in repo and returns Flow<ChatConversationEntity?>
+                    conversationTitle = conversation?.conversationTitle ?: "Chat"
+                }
         } else if (languageCode != null && topicId != null) {
             // Try to find existing conversation by language and topic
-            val existingConversation = chatRepository.getConversationByLanguageAndTopic(languageCode, topicId).firstOrNull() // Use firstOrNull() for one-time check
+            val existingConversation =
+                chatRepository.getConversationByLanguageAndTopic(languageCode, topicId)
+                    .firstOrNull() // Use firstOrNull() for one-time check
 
             if (existingConversation != null) {
                 currentChatId = existingConversation.id
@@ -159,7 +207,10 @@ fun ChatScreen(
                     userProfileImageUrl = null, // Placeholder
                     conversationTitle = conversationTitle
                 )
-                Log.d("ChatScreen", "Creating new conversation: $newConversationId for $languageCode, $topicId")
+                Log.d(
+                    "ChatScreen",
+                    "Creating new conversation: $newConversationId for $languageCode, $topicId"
+                )
                 // The startNewConversation method in ChatRepository already handles LLM interaction
                 // and initial message.
                 // It's important that startNewConversation is robust enough or that LLM readiness is handled.
@@ -176,13 +227,19 @@ fun ChatScreen(
             listState.animateScrollToItem(0)
         }
     }
+
     MetallicPanelGradientBackground(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             // Make Scaffold background transparent to see the gradient
             backgroundColor = Color.Transparent,
             topBar = {
                 TopAppBar(
-                    title = { Text(conversationTitle, color = textColorOnGradient) }, // Ensure title is readable
+                    title = {
+                        Text(
+                            conversationTitle,
+                            color = textColorOnGradient
+                        )
+                    }, // Ensure title is readable
                     // Consider making TopAppBar background transparent or semi-transparent
                     backgroundColor = Color.Black.copy(alpha = 0.2f), // Example: semi-transparent
                     elevation = 0.dp // Remove shadow if it looks odd with gradient
@@ -191,68 +248,74 @@ fun ChatScreen(
             bottomBar = {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message...", color = textColorOnGradient.copy(alpha = 0.7f)) },
-                    colors = TextFieldDefaults.textFieldColors(
-                        textColor = textColorOnGradient,
-                        backgroundColor = Color.White.copy(alpha = 0.5f), // Semi-transparent background for input
-                        cursorColor = textColorOnGradient,
-                        focusedIndicatorColor = Color.Transparent, // Optional: hide indicator if design calls for it
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                    onClick = {
-                        val currentId = currentChatId
-                        if (inputText.isNotBlank() && currentId != null) {
-                            val userMessage = ChatMessageEntity(
-                                conversationId = currentId,
-                                text = inputText,
-                                timestamp = System.currentTimeMillis(),
-                                isUserMessage = true
-                            )
-                            coroutineScope.launch {
-                                chatRepository.sendMessage(currentId, userMessage)
-                                inputText = ""
-                            }
-                        }
-                    },
-                    enabled = currentChatId != null && llmState is LlmServiceState.Ready
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Filled.Send,
-                        contentDescription = "Send message",
-                        tint = textColorOnGradient // Ensure icon is visible
+                    TextField(
+                        value = inputText,
+                        onValueChange = { inputText = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = {
+                            Text(
+                                "Type a message...",
+                                color = textColorOnGradient.copy(alpha = 0.7f)
+                            )
+                        },
+                        colors = TextFieldDefaults.textFieldColors(
+                            textColor = textColorOnGradient,
+                            backgroundColor = Color.White.copy(alpha = 0.5f), // Semi-transparent background for input
+                            cursorColor = textColorOnGradient,
+                            focusedIndicatorColor = Color.Transparent, // Optional: hide indicator if design calls for it
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = {
+                            val currentId = currentChatId
+                            if (inputText.isNotBlank() && currentId != null) {
+                                val userMessage = ChatMessageEntity(
+                                    conversationId = currentId,
+                                    text = inputText,
+                                    timestamp = System.currentTimeMillis(),
+                                    isUserMessage = true
+                                )
+                                coroutineScope.launch {
+                                    chatRepository.sendMessage(currentId, userMessage)
+                                    inputText = ""
+                                }
+                            }
+                        },
+                        enabled = currentChatId != null && llmState is LlmServiceState.Ready
+                    ) {
+                        Icon(
+                            Icons.Filled.Send,
+                            contentDescription = "Send message",
+                            tint = textColorOnGradient // Ensure icon is visible
+                        )
+                    }
                 }
             }
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 8.dp),
-            reverseLayout = true,
-            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
-        ) {
-            items(messages.reversed(), key = { it.id }) { message ->
-                // Pass bubble and text colors to ChatMessageBubble
-                // This might require ChatMessageBubble to accept these as parameters
-                ChatMessageBubble(
-                    messageText = message.text,
-                    isUserMessage = message.isUserMessage,
-                    bubbleColor = if (message.isUserMessage) userBubbleBackgroundColor else aiBubbleBackgroundColor,
-                    textColor = if (message.isUserMessage) textOnUserBubbleColor else textOnAiBubbleColor,
-                    showSpeakerIcon = !message.isUserMessage,
-                    onSpeakerIconClick = {
-                        Log.d("ChatScreen", "Speaker icon clicked for message: ${message.text}")
-                    }
-                )
+        ) { paddingValues ->
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 8.dp),
+                reverseLayout = true,
+                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.Bottom)
+            ) {
+                items(messages.reversed(), key = { it.id }) { message ->
+                    // Pass bubble and text colors to ChatMessageBubble
+                    // This might require ChatMessageBubble to accept these as parameters
+                    ChatMessageBubble(
+                        messageText = message.text,
+                        isUserMessage = message.isUserMessage,
+                        bubbleColor = if (message.isUserMessage) userBubbleBackgroundColor else aiBubbleBackgroundColor,
+                        textColor = if (message.isUserMessage) textOnUserBubbleColor else textOnAiBubbleColor,
+                        showSpeakerIcon = !message.isUserMessage,
+                        onSpeakerIconClick = {
+                            Log.d("ChatScreen", "Speaker icon clicked for message: ${message.text}")
+                        }
+                    )
+                }
             }
         }
     }
@@ -271,7 +334,7 @@ fun ChatScreenPreview_ExistingChat() {
         previewLlmService
     )
     val dummyUserSettingsRepo = UserSettingsRepository(context)
-    LanguageAppTheme {
+    LangTutorAppTheme {
         ChatScreen(
             chatId = "previewChatId",
             chatRepository = dummyRepo,
@@ -292,7 +355,7 @@ fun ChatScreenPreview_NewChatFromTopic() {
         previewLlmService
     )
     val dummyUserSettingsRepo = UserSettingsRepository(context)
-    LanguageAppTheme {
+    LangTutorAppTheme {
         ChatScreen(
             chatId = null,
             languageCode = "es",
@@ -301,43 +364,5 @@ fun ChatScreenPreview_NewChatFromTopic() {
             userSettingsRepository = dummyUserSettingsRepo,
             llmService = previewLlmService
         )
-    }
-}
-
-private class FakeLlmService(initialState: LlmServiceState = LlmServiceState.Ready) : LlmService {
-    override val serviceState = MutableStateFlow(initialState)
-
-    override suspend fun initialize() {
-        serviceState.value = LlmServiceState.Initializing
-        delay(100) // Simulate some work
-        serviceState.value = LlmServiceState.Ready
-        Log.d("FakeLlmService", "Fake initialized")
-    }
-
-    override fun generateResponse(prompt: String, conversationId: String, targetLanguage: String): Flow<String> {
-        Log.d("FakeLlmService", "Fake generateResponse called with prompt: $prompt")
-        return flow {
-            emit("This is a fake response to: ")
-            delay(50)
-            emit(prompt.take(50) + "...")
-        }
-    }
-
-    override suspend fun getInitialGreeting(topic: String, targetLanguage: String): String {
-        Log.d("FakeLlmService", "Fake getInitialGreeting for topic: $topic")
-        return "Hello! Let's talk about $topic in $targetLanguage. (Fake)"
-    }
-
-    override fun resetSession() { // Changed signature
-        serviceState.value = LlmServiceState.Idle // Corrected: Use public serviceState
-        Log.d("FakeLlmService", "Fake session reset called (now synchronous)")
-        // Optionally, simulate re-initialization if needed for preview state
-        // _serviceState.value = LlmServiceState.Initializing
-        // _serviceState.value = LlmServiceState.Ready
-    }
-
-    override fun close() {
-        serviceState.value = LlmServiceState.Idle
-        Log.d("FakeLlmService", "Fake closed")
     }
 }

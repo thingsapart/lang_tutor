@@ -10,10 +10,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 // import com.thingsapart.langtutor.ui.theme.PastelBlue // No longer used directly here
 import androidx.compose.foundation.shape.RoundedCornerShape // For Surface shape
 import androidx.compose.ui.graphics.Color // For new parameters
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 @Composable
 fun ChatMessageBubble(
@@ -69,7 +69,7 @@ fun ChatMessageBubble(
 @Preview(showBackground = true, name = "User Message")
 @Composable
 fun UserChatMessageBubblePreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         ChatMessageBubble(
             messageText = "Hello, AI! How are you?",
             isUserMessage = true,
@@ -84,7 +84,7 @@ fun UserChatMessageBubblePreview() {
 @Preview(showBackground = true, name = "AI Message")
 @Composable
 fun AiChatMessageBubblePreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         Column {
             ChatMessageBubble(
                 messageText = "Hello, User! I am doing great. How can I help you today?",
@@ -109,7 +109,7 @@ fun AiChatMessageBubblePreview() {
 @Preview(showBackground = true, name = "User Message No Icon")
 @Composable
 fun UserChatMessageBubbleNoIconPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         ChatMessageBubble(
             messageText = "Just a simple message.",
             isUserMessage = true,

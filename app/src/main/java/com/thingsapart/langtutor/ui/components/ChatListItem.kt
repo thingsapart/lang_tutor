@@ -15,7 +15,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 @Composable
 fun ChatListItem(
@@ -78,7 +78,7 @@ fun ChatListItem(
 @Preview(showBackground = true)
 @Composable
 fun ChatListItemPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         ChatListItem(
             userName = "Alex Linderson",
             lastMessage = "Hey, how are you doing today? I was wondering if you'd like to practice Spanish.",
@@ -92,7 +92,7 @@ fun ChatListItemPreview() {
 @Preview(showBackground = true)
 @Composable
 fun ChatListItemNoImagePreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         ChatListItem(
             userName = "Maria Rodriguez",
             lastMessage = "¡Hola! ¿Qué tal?",

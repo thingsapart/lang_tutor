@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.ui.Modifier
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 import com.thingsapart.langtutor.data.AppDatabase
 import com.thingsapart.langtutor.data.UserSettingsRepository
 import com.thingsapart.langtutor.llm.MediaPipeLlmService
@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
         ) // Modified
 
         setContent {
-            LanguageAppTheme {
+            LangTutorAppTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),

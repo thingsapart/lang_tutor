@@ -8,7 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 @Composable
 fun ReturningUserScreen(
@@ -65,7 +66,7 @@ fun ReturningUserScreen(
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 fun ReturningUserScreenPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         ReturningUserScreen(
             onContinueChatClicked = {},
             onSelectTopicClicked = {}

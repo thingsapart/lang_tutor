@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.thingsapart.langtutor.ui.components.LanguageCard
-import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
+import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 
 data class Language(val name: String, val code: String, val flagImageUrl: String)
 
@@ -73,7 +73,7 @@ fun LanguageSelectorScreen(
 @Preview(showBackground = true, widthDp = 360, heightDp = 640)
 @Composable
 fun LanguageSelectorScreenPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         LanguageSelectorScreen(
             title = "Native Language",
             caption = "Select your native language",
@@ -90,7 +90,7 @@ fun LanguageSelectorScreenPreview() {
 @Preview(showBackground = true, widthDp = 480, heightDp = 800, name = "Tablet Preview")
 @Composable
 fun LanguageSelectorScreenTabletPreview() {
-    LanguageAppTheme {
+    LangTutorAppTheme {
         LanguageSelectorScreen(
             title = "Learn Language",
             caption = "Select a language to learn",
