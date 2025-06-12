@@ -18,9 +18,10 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-lifecycle-runtime-compose-android = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose-android", version.ref = "lifecycleRuntimeComposeAndroid" }
-litert = { group = "com.google.android.litert", name = "litert", version.ref = "litert"}
-litert-support = { group = "com.google.android.litert", name = "support", version.ref = "litert"}
-litert-metadata = { group = "com.google.android.litert", name = "metadata", version.ref = "litert"}
+
+litert = { group = "com.google.ai.edge.litert", name = "litert", version.ref = "litert" }
+litert-support = { group = "com.google.ai.edge.litert", name = "litert-support", version.ref = "litert" }
+litert-metadata = { group = "com.google.ai.edge.litert", name = "litert-metadata", version.ref = "litert" }
 # tensorflow-lite-gpu = { module = "org.tensorflow:tensorflow-lite-gpu" }
 
 [plugins]

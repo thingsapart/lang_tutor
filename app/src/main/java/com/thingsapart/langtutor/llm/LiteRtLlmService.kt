@@ -3,6 +3,7 @@ package com.thingsapart.langtutor.llm
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import android.view.Display.Mode
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -24,6 +25,7 @@ import java.io.InputStreamReader
 import java.nio.ByteBuffer
 import java.nio.FloatBuffer // Or IntBuffer, depending on model output
 import java.nio.IntBuffer
+import java.nio.channels.FileChannel
 
 class LiteRtLlmService(
     private val context: Context,
@@ -76,7 +78,9 @@ class LiteRtLlmService(
 
         try {
             withContext(Dispatchers.IO) {
-                val liteRtBuffer = FileUtil.loadMappedFile(context, modelFile.absolutePath)
+                //val liteRtBuffer = FileUtil.loadMappedFile(context, modelFile.absolutePath)
+                val mappedFile = MappedFile(modelFile, FileChannel.MapMode.READ_ONLY)
+                val liteRtBuffer = mappedFile.getBuffer()
                 Log.i(TAG, "Loaded LiteRT buffer from ${modelFile.absolutePath}")
 
                 // Load vocabulary from metadata
@@ -196,16 +200,16 @@ class LiteRtLlmService(
     private fun removePunctuation(text: String): String {
         // This is a very basic punctuation remover.
         // Models often have specific preprocessing requirements.
-        return text.replace("[^a-zA-Z0-9\s]".toRegex(), "")
+        return text.replace("[^a-zA-Z0-9\\s]".toRegex(), "")
     }
 
     private fun detokenizeResponse(outputIds: IntArray): String {
         // This is a simplified detokenizer. Actual implementation might be more complex.
         val reversedVocab = vocabularyMap.entries.associateBy({ it.value }) { it.key }
-        return outputIds.mapNotNull { id ->
+        return outputIds.filter { it != null }.map { id ->
             // Stop decoding at EOS token or PAD token if necessary
             if (id == modelConfig.eosTokenId || id == modelConfig.padTokenId) {
-                return@mapNotNull null
+                return@map null
             }
             // Use padTokenId as fallback for unknown tokens if not found in reversedVocab, though <UNK> is conventional
             reversedVocab[id] ?: "<UNK>"
