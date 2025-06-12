@@ -31,6 +31,7 @@ import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 import kotlinx.coroutines.delay // Added
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.firstOrNull // Added import
 import kotlinx.coroutines.flow.flow // Added
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -118,29 +119,42 @@ fun ChatScreen(
     LaunchedEffect(key1 = chatId, key2 = languageCode, key3 = topicId) {
         if (chatId != null) {
             currentChatId = chatId
-            // Fetch title if needed: chatRepository.getConversationTitle(chatId).collect { title -> conversationTitle = title }
-            conversationTitle = "Chat" // Placeholder, real title would be fetched
+            // Fetch title if needed
+            chatRepository.getConversationById(chatId).collect { conversation -> // Assuming getConversationById exists in repo and returns Flow<ChatConversationEntity?>
+                conversationTitle = conversation?.conversationTitle ?: "Chat"
+            }
         } else if (languageCode != null && topicId != null) {
-            val newConversationId = UUID.randomUUID().toString()
-            currentChatId = newConversationId
-            conversationTitle = "$languageCode: $topicId" // Example title
-            val newConversation = ChatConversationEntity(
-                id = newConversationId,
-                targetLanguageCode = languageCode,
-                topicId = topicId,
-                lastMessage = null,
-                lastMessageTimestamp = System.currentTimeMillis(),
-                userProfileImageUrl = null,
-                conversationTitle = conversationTitle
-            )
-            if (llmState is LlmServiceState.Ready) {
-                 Log.d("ChatScreen", "LLM Ready, starting new conversation via repository.")
-                chatRepository.startNewConversation(newConversation)
+            // Try to find existing conversation by language and topic
+            val existingConversation = chatRepository.getConversationByLanguageAndTopic(languageCode, topicId).firstOrNull() // Use firstOrNull() for one-time check
+
+            if (existingConversation != null) {
+                currentChatId = existingConversation.id
+                conversationTitle = existingConversation.conversationTitle
+                Log.d("ChatScreen", "Found existing conversation: ${existingConversation.id}")
             } else {
-                Log.w("ChatScreen", "LLM not ready for new conversation. State: $llmState. TODO: Handle this, e.g. save locally.")
-                // chatDao.insertConversation(newConversation) // Example of direct DAO use, to be removed
-                // chatDao.updateConversationSummary(newConversation.id, "Conversation created. Waiting for AI.", System.currentTimeMillis())
-                Log.w("ChatScreen", "TODO: Implement conversation creation via ChatRepository when LLM is not ready.")
+                // No existing conversation, create a new one
+                val newConversationId = UUID.randomUUID().toString()
+                currentChatId = newConversationId
+                // Generate a more descriptive title, perhaps based on actual topic name later if available
+                // For now, topicId is good.
+                conversationTitle = "Chat: $languageCode - $topicId"
+                val newConversation = ChatConversationEntity(
+                    id = newConversationId,
+                    targetLanguageCode = languageCode,
+                    topicId = topicId,
+                    lastMessage = null, // Will be set by initial greeting
+                    lastMessageTimestamp = System.currentTimeMillis(), // Initial timestamp
+                    userProfileImageUrl = null, // Placeholder
+                    conversationTitle = conversationTitle
+                )
+                Log.d("ChatScreen", "Creating new conversation: $newConversationId for $languageCode, $topicId")
+                // The startNewConversation method in ChatRepository already handles LLM interaction
+                // and initial message.
+                // It's important that startNewConversation is robust enough or that LLM readiness is handled.
+                // The existing code already has some LLM state checks for sending messages.
+                // Consider if LLM must be ready before even attempting to create in DB.
+                // For now, assuming repository handles this.
+                chatRepository.startNewConversation(newConversation)
             }
         }
     }

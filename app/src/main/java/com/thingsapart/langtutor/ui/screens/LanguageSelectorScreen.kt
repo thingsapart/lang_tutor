@@ -22,27 +22,19 @@ import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 
 data class Language(val name: String, val code: String, val flagImageUrl: String)
 
-val placeholderLanguages = listOf(
-    Language("Spanish", "es", "https://flagcdn.com/w320/es.png"),
-    Language("French", "fr", "https://flagcdn.com/w320/fr.png"),
-    Language("German", "de", "https://flagcdn.com/w320/de.png"),
-    Language("Italian", "it", "https://flagcdn.com/w320/it.png"),
-    Language("Portuguese", "pt", "https://flagcdn.com/w320/pt.png"),
-    Language("Japanese", "ja", "https://flagcdn.com/w320/jp.png"),
-    Language("Korean", "ko", "https://flagcdn.com/w320/kr.png"),
-    Language("Chinese", "zh", "https://flagcdn.com/w320/cn.png"),
-    Language("Hindi", "hi", "https://flagcdn.com/w320/in.png"),
-    Language("Arabic", "ar", "https://flagcdn.com/w320/sa.png")
-)
+// Removed placeholderLanguages list
 
 @Composable
 fun LanguageSelectorScreen(
+    title: String,
+    caption: String,
+    languages: List<Language>,
     onLanguageSelected: (String) -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Choose Your Language") },
+                title = { Text(title) }, // Use title parameter
                 backgroundColor = MaterialTheme.colors.primary
             )
         }
@@ -55,7 +47,7 @@ fun LanguageSelectorScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "What language do you want to learn?",
+                text = caption, // Use caption parameter
                 style = MaterialTheme.typography.h5,
                 modifier = Modifier.padding(bottom = 24.dp)
             )
@@ -66,7 +58,7 @@ fun LanguageSelectorScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(placeholderLanguages) { language ->
+                items(languages) { language -> // Use languages parameter
                     LanguageCard(
                         languageName = language.name,
                         flagImageUrl = language.flagImageUrl,
@@ -82,7 +74,16 @@ fun LanguageSelectorScreen(
 @Composable
 fun LanguageSelectorScreenPreview() {
     LanguageAppTheme {
-        LanguageSelectorScreen(onLanguageSelected = {})
+        LanguageSelectorScreen(
+            title = "Native Language",
+            caption = "Select your native language",
+            languages = listOf(
+                Language("English", "en", "https://flagcdn.com/w320/us.png"),
+                Language("German", "de", "https://flagcdn.com/w320/de.png"),
+                Language("Spanish", "es", "https://flagcdn.com/w320/es.png")
+            ),
+            onLanguageSelected = {}
+        )
     }
 }
 
@@ -90,43 +91,16 @@ fun LanguageSelectorScreenPreview() {
 @Composable
 fun LanguageSelectorScreenTabletPreview() {
     LanguageAppTheme {
-        // Example with 3 columns for a tablet-like preview
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { Text("Choose Your Language") },
-                    backgroundColor = MaterialTheme.colors.primary
-                )
-            }
-        ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "What language do you want to learn?",
-                    style = MaterialTheme.typography.h5,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
-
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3), // 3 columns for tablet
-                    contentPadding = PaddingValues(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(placeholderLanguages.take(6)) { language -> // Show fewer items for preview clarity
-                        LanguageCard(
-                            languageName = language.name,
-                            flagImageUrl = language.flagImageUrl,
-                            onClick = { }
-                        )
-                    }
-                }
-            }
-        }
+        LanguageSelectorScreen(
+            title = "Learn Language",
+            caption = "Select a language to learn",
+            languages = listOf(
+                Language("French", "fr", "https://flagcdn.com/w320/fr.png"),
+                Language("Italian", "it", "https://flagcdn.com/w320/it.png"),
+                Language("Japanese", "ja", "https://flagcdn.com/w320/jp.png"),
+                Language("Korean", "ko", "https://flagcdn.com/w320/kr.png")
+            ),
+            onLanguageSelected = {}
+        )
     }
 }

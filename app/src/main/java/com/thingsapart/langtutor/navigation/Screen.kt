@@ -14,6 +14,7 @@ sealed class Screen(val route: String) {
     }
     object OngoingChats : Screen("ongoing_chats")
     object ReturningUser : Screen("returning_user")
+    object Welcome : Screen("welcome")
 
     // Helper to add arguments to routes easily
     fun withArgs(vararg args: String): String {
