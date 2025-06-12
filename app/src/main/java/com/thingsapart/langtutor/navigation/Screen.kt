@@ -1,6 +1,7 @@
 package com.thingsapart.langtutor.navigation
 
 sealed class Screen(val route: String) {
+    object Welcome : Screen("welcome") // Added Welcome Screen
     object LanguageSelectorNative : Screen("language_selector_native")
     object LanguageSelectorLearn : Screen("language_selector_learn")
     object TopicSelector : Screen("topic_selector/{languageCode}") {

@@ -23,8 +23,11 @@ interface ChatDao {
     @Query("UPDATE conversations SET lastMessage = :lastMessage, lastMessageTimestamp = :timestamp WHERE id = :conversationId")
     suspend fun updateConversationSummary(conversationId: String, lastMessage: String, timestamp: Long)
 
-    @Query("SELECT * FROM conversations WHERE id = :conversationId") // Added this method
+    @Query("SELECT * FROM conversations WHERE id = :conversationId")
     fun getConversationById(conversationId: String): Flow<ChatConversationEntity?>
+
+    @Query("SELECT * FROM conversations WHERE targetLanguageCode = :languageCode AND topicId = :topicId LIMIT 1")
+    suspend fun getConversationByLanguageAndTopic(languageCode: String, topicId: String): ChatConversationEntity?
 
     // Optional: Example delete methods
     @Query("DELETE FROM conversations WHERE id = :conversationId")

@@ -127,32 +127,39 @@ fun ChatScreen(
 
 
     LaunchedEffect(key1 = chatId, key2 = languageCode, key3 = topicId) {
-        if (chatId != null) {
-            currentChatId = chatId
-            conversationTitle = "Chat with Buddy" // Placeholder
-        } else if (languageCode != null && topicId != null) {
-            val newConversationId = UUID.randomUUID().toString()
-            currentChatId = newConversationId
-            conversationTitle = "$languageCode: $topicId"
-            val newConversation = ChatConversationEntity(
-                id = newConversationId,
-                targetLanguageCode = languageCode,
-                topicId = topicId,
-                lastMessage = null,
-                lastMessageTimestamp = System.currentTimeMillis(),
-                userProfileImageUrl = null,
-                conversationTitle = conversationTitle
-            )
-            if (llmState is LlmServiceState.Ready) { // Only start if LLM is ready
-                 Log.d("ChatScreen", "LLM Ready, starting new conversation via repository.")
-                chatRepository.startNewConversation(newConversation)
-            } else {
-                Log.w("ChatScreen", "LLM not ready when trying to start new conversation. State: $llmState. User will need to send first message manually or wait.")
-                // Optionally, save the conversation without the initial AI message,
-                // or wait for LLM to be ready and then trigger.
-                // For now, just log. The user can initiate by sending a message once LLM is ready.
-                 chatDao.insertConversation(newConversation) // Insert basic conversation details
-                 chatDao.updateConversationSummary(newConversation.id, "Conversation created. Waiting for AI.", System.currentTimeMillis())
+        coroutineScope.launch { // Use coroutineScope for suspend functions
+            if (chatId != null) {
+                currentChatId = chatId
+                // Fetch conversation details to set title, if not already available
+                // For now, keeping a placeholder or assuming it's handled if navigating from a list
+                val existingConversation = chatRepository.getMessagesForConversation(chatId).firstOrNull()?.firstOrNull()?.let {
+                    chatRepository.getAllConversations().firstOrNull()?.find { conv -> conv.id == it.conversationId }
+                }
+                conversationTitle = existingConversation?.conversationTitle ?: "Chat"
+
+            } else if (languageCode != null && topicId != null) {
+                Log.d("ChatScreen", "Finding or creating conversation for $languageCode / $topicId")
+                val conversation = chatRepository.findOrCreateConversationForTopic(languageCode, topicId)
+                currentChatId = conversation.id
+                conversationTitle = conversation.conversationTitle // Use title from repository
+
+                // The logic for adding initial AI greeting if LLM was not ready during creation
+                // is now more encapsulated in the repository.
+                // However, if findOrCreateConversationForTopic returns a conversation where AI greeting failed
+                // and LLM is NOW ready, we might want to trigger it.
+                // For now, this is simplified: findOrCreate handles the initial attempt.
+                // If it was an existing conversation, messages will load.
+                // If it was new, messages (including AI first message if successful) will load.
+
+                // The original code had a special handling if LLM was not ready:
+                // It would insert via DAO and bypass repository's startNewConversation.
+                // The new findOrCreateConversationForTopic in repository tries to get AI greeting.
+                // If LLM is not ready there, it still saves the conversation.
+                // This seems to cover the case, though the "Conversation created. Waiting for AI."
+                // specific message might be different if AI greeting fails inside repo.
+                // This direct DAO interaction is removed as repository now handles it.
+                // chatDao.insertConversation(newConversation)
+                // chatDao.updateConversationSummary(newConversation.id, "Conversation created. Waiting for AI.", System.currentTimeMillis())
             }
         }
     }

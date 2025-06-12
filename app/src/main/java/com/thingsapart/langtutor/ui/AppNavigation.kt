@@ -15,6 +15,7 @@ import com.thingsapart.langtutor.ui.screens.LanguageSelectorScreen
 import com.thingsapart.langtutor.ui.screens.OngoingChatsScreen
 import com.thingsapart.langtutor.ui.screens.ReturningUserScreen
 import com.thingsapart.langtutor.ui.screens.TopicSelectorScreen
+import com.thingsapart.langtutor.ui.screens.WelcomeScreen // Import WelcomeScreen
 import kotlinx.coroutines.launch
 
 @Composable
@@ -36,13 +37,7 @@ fun AppNavigator(
     // A more complex setup might involve a loading screen or observing this value
     // outside NavHost to conditionally render different NavHost graphs or redirect.
     // For now, we'll keep it simple; this primarily affects the *initial* screen.
-    val startDestination = remember(nativeLanguage) { // Recalculate only if nativeLanguage changes *before* NavHost shown
-        if (nativeLanguage != null) {
-            Screen.ReturningUser.route
-        } else {
-            Screen.LanguageSelectorNative.route
-        }
-    }
+    val startDestination = Screen.Welcome.route // Set WelcomeScreen as start destination
 
     // Show a loading indicator or an empty screen while determining start destination
     // This is a simplified approach. A real app might use a splash screen or a loading composable.
@@ -54,8 +49,12 @@ fun AppNavigator(
 
 
     NavHost(navController = navController, startDestination = startDestination) {
+        composable(Screen.Welcome.route) { // Add WelcomeScreen composable
+            WelcomeScreen(navController = navController)
+        }
+
         composable(Screen.LanguageSelectorNative.route) {
-            LanguageSelectorScreen { nativeLanguageCode ->
+            LanguageSelectorScreen(isNativeSelection = true) { nativeLanguageCode -> // Pass isNativeSelection = true
                 coroutineScope.launch {
                     userSettingsRepository.saveNativeLanguage(nativeLanguageCode)
                 }
@@ -69,7 +68,7 @@ fun AppNavigator(
         }
 
         composable(Screen.LanguageSelectorLearn.route) {
-            LanguageSelectorScreen { languageCode ->
+            LanguageSelectorScreen(isNativeSelection = false) { languageCode -> // Pass isNativeSelection = false
                 // Here, languageCode is the language to learn
                 navController.navigate(Screen.TopicSelector.createRoute(languageCode))
             }

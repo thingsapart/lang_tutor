@@ -1,5 +1,6 @@
 package com.thingsapart.langtutor.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,19 +8,21 @@ import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
-import com.example.languageapp.ui.theme.LanguageAppTheme
+// Removed import com.example.languageapp.ui.theme.LanguageAppTheme
 import com.thingsapart.langtutor.ui.theme.LanguageAppTheme
 
 @Composable
 fun TopicCard(
     topicName: String,
     topicImageUrl: String,
+    isSelected: Boolean, // Added isSelected parameter
     onClick: () -> Unit
 ) {
     Card(
@@ -28,7 +31,8 @@ fun TopicCard(
             .height(150.dp) // Adjust height as needed
             .clickable(onClick = onClick),
         shape = MaterialTheme.shapes.medium,
-        elevation = 4.dp
+        elevation = 4.dp,
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colors.primary) else null // Add border if selected
     ) {
         Column(
             modifier = Modifier
@@ -58,10 +62,20 @@ fun TopicCard(
 @Composable
 fun TopicCardPreview() {
     LanguageAppTheme {
-        TopicCard(
-            topicName = "Common Greetings",
-            topicImageUrl = "https://example.com/greeting_icon.png", // Replace with a real placeholder or remove if none
-            onClick = {}
-        )
+        Row {
+            TopicCard(
+                topicName = "Common Greetings",
+                topicImageUrl = "https://example.com/greeting_icon.png",
+                isSelected = true,
+                onClick = {}
+            )
+            Spacer(Modifier.width(8.dp))
+            TopicCard(
+                topicName = "Ordering Food",
+                topicImageUrl = "https://example.com/food_icon.png",
+                isSelected = false,
+                onClick = {}
+            )
+        }
     }
 }
