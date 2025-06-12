@@ -2,6 +2,7 @@ package com.thingsapart.langtutor.llm
 
 import android.content.Context
 import android.util.Log
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import java.io.Closeable
 //import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import java.io.File
@@ -124,7 +125,7 @@ object ModelManager {
 
     val SMOL_135M_CPU = LlmModelConfig(
         modelName = "SmolLM 135M IT (CPU)",
-        internalModelId = "olLM-135M-Instruct_seq128_q8_ekv1280.tflite",
+        internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite",
         url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
@@ -142,7 +143,7 @@ object ModelManager {
 
     val SMOL_135M_GPU = LlmModelConfig(
         modelName = "SmolLM 135M IT (GPU)",
-        internalModelId = "olLM-135M-Instruct_seq128_q8_ekv1280.tflite",
+        internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite",
         url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
@@ -185,5 +186,14 @@ object ModelManager {
     fun getLocalModelMappedFile(context: Context, modelConfig: LlmModelConfig): MappedFile {
         val file = getLocalModelFile(context, modelConfig)
         return MappedFile(file, FileChannel.MapMode.READ_ONLY)
+    }
+
+    // Helper to convert our ModelBackend to MediaPipe's Backend
+    fun mapToMediaPipeBackend(backend: ModelBackend?): LlmInference.Backend? {
+        return when (backend) {
+            ModelBackend.CPU -> LlmInference.Backend.CPU
+            ModelBackend.GPU -> LlmInference.Backend.GPU
+            null -> null
+        }
     }
 }

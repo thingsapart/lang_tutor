@@ -256,17 +256,19 @@ class LiteRtLlmService(
             // This needs to match the actual model's output tensor type.
             // If model outputs logits, add an argmax step.
 
-            val maxOutputTokens = outputShape[1]
-            val outputIntBuffer = IntBuffer.allocate(maxOutputTokens) // Assuming output is Int token IDs
+            val outputFloatBuffer = FloatBuffer.allocate(outputTensor.numElements()) // numElements should give total capacity needed for floats
 
             val startTime = SystemClock.uptimeMillis()
-            interpreter!!.run(inputBuffer, outputIntBuffer) // Adjust if output is not IntBuffer
+            interpreter!!.run(inputBuffer, outputFloatBuffer)
             val inferenceTime = SystemClock.uptimeMillis() - startTime
             Log.i(TAG, "Inference time: $inferenceTime ms")
 
-            outputIntBuffer.rewind()
-            val generatedTokenIds = IntArray(outputIntBuffer.remaining())
-            outputIntBuffer.get(generatedTokenIds)
+            outputFloatBuffer.rewind()
+            val generatedLogits = FloatArray(outputFloatBuffer.remaining())
+            outputFloatBuffer.get(generatedLogits)
+
+            // Extract token IDs from logits
+            val generatedTokenIds = extractTokenIdsFromLogits(generatedLogits, outputShape, outputShape[2])
 
             // Detokenize the full response
             val responseText = detokenizeResponse(generatedTokenIds)
@@ -283,6 +285,24 @@ class LiteRtLlmService(
         awaitClose { Log.d(TAG, "callbackFlow awaitClose for prompt: \"$prompt\"") }
     }.flowOn(Dispatchers.IO) // Ensure inference runs on a background thread
 
+    private fun extractTokenIdsFromLogits(logits: FloatArray, outputShape: IntArray, vocabularySize: Int): IntArray {
+        val sequenceLength = outputShape[1] // Assuming shape [batch, sequence_length, vocab_size]
+        val tokenIds = IntArray(sequenceLength)
+
+        for (i in 0 until sequenceLength) {
+            var maxLogit = -Float.MAX_VALUE
+            var tokenId = 0
+            val startIndex = i * vocabularySize
+            for (j in 0 until vocabularySize) {
+                if (logits[startIndex + j] > maxLogit) {
+                    maxLogit = logits[startIndex + j]
+                    tokenId = j
+                }
+            }
+            tokenIds[i] = tokenId
+        }
+        return tokenIds
+    }
 
     override suspend fun getInitialGreeting(topic: String, targetLanguage: String): String {
         if (_serviceState.value !is LlmServiceState.Ready || interpreter == null) {
