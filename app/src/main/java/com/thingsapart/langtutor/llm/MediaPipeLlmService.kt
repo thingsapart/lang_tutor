@@ -1,5 +1,6 @@
 package com.thingsapart.langtutor.llm
 
+/**
 import android.content.Context
 import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
@@ -230,3 +231,4 @@ class MediaPipeLlmService(
         }
     }
 }
+**/

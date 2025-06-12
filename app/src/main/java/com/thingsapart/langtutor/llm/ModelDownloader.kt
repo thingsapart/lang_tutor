@@ -3,14 +3,17 @@ package com.thingsapart.langtutor.llm
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.MappedByteBuffer
+import java.nio.channels.FileChannel
 
 class ModelDownloader {
-
     suspend fun downloadModel(
         context: Context,
         modelConfig: LlmModelConfig,
@@ -73,3 +76,4 @@ class ModelDownloader {
         }
     }
 }
+

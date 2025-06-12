@@ -7,7 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.thingsapart.langtutor.data.UserSettingsRepository
-import com.thingsapart.langtutor.llm.MediaPipeLlmService
+import com.thingsapart.langtutor.llm.LlmService
 import com.thingsapart.langtutor.navigation.Screen
 import com.thingsapart.langtutor.ui.screens.ChatScreen
 import com.thingsapart.langtutor.ui.screens.Language // Import Language data class
@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 fun AppNavigator(
     userSettingsRepository: UserSettingsRepository,
     chatRepository: com.thingsapart.langtutor.data.ChatRepository, // Added ChatRepository
-    llmService: MediaPipeLlmService // Added
+    llmService: LlmService // Added
 ) {
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
