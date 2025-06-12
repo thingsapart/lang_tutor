@@ -95,11 +95,11 @@ object ModelManager {
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (CPU)",
         internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.tflite",
-        url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.CPU,
-        llmBackend = LlmBackend.LITE_RT, // New field added
+        llmBackend = LlmBackend.MEDIA_PIPE,
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,
@@ -114,11 +114,11 @@ object ModelManager {
     val QWEN_2_5_500M_IT_GPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (GPU)",
         internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.tflite",
-        url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.GPU,
-        llmBackend = LlmBackend.LITE_RT, // New field added
+        llmBackend = LlmBackend.MEDIA_PIPE,
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,
@@ -133,11 +133,11 @@ object ModelManager {
     val SMOL_135M_CPU = LlmModelConfig(
         modelName = "SmolLM 135M IT (CPU)",
         internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite",
-        url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.CPU,
-        llmBackend = LlmBackend.LITE_RT, // New field added
+        llmBackend = LlmBackend.MEDIA_PIPE,
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,
@@ -152,11 +152,11 @@ object ModelManager {
     val SMOL_135M_GPU = LlmModelConfig(
         modelName = "SmolLM 135M IT (GPU)",
         internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite",
-        url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite?download=true",
+        url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
         preferredBackend = ModelBackend.GPU,
-        llmBackend = LlmBackend.LITE_RT, // New field added
+        llmBackend = LlmBackend.MEDIA_PIPE,
         thinkingIndicator = false,
         temperature = 0.7f,
         topK = 20,

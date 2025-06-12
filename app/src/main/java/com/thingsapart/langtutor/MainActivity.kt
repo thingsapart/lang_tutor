@@ -33,13 +33,14 @@ class MainActivity : ComponentActivity() {
 
         // Initialize LlmService dynamically
         val llmService: LlmService = runBlocking { // Use runBlocking for simplicity here
-            val selectedModelId = userSettingsRepository.getSelectedModel().first()
+            //val selectedModelId = userSettingsRepository.getSelectedModel().first()
+            val selectedModelId = ModelManager.DEFAULT_MODEL.internalModelId
             val modelConfig = ModelManager.getAllModels().find { it.internalModelId == selectedModelId } ?: ModelManager.DEFAULT_MODEL
 
             if (modelConfig.llmBackend == com.thingsapart.langtutor.llm.LlmBackend.MEDIA_PIPE) {
-                MediaPipeLlmService(applicationContext, modelDownloader, modelConfig)
+                MediaPipeLlmService(applicationContext, modelConfig, modelDownloader)
             } else {
-                LiteRtLlmService(applicationContext, modelDownloader, modelConfig)
+                LiteRtLlmService(applicationContext, modelConfig, modelDownloader)
             }
         }
 
