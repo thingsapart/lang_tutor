@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.thingsapart.langtutor.llm.LlmBackend
 import com.thingsapart.langtutor.llm.LlmModelConfig
 
 // Define a state holder for the dialog
@@ -109,7 +110,9 @@ fun ModelDownloadDialogPreview_Downloading() {
                     internalModelId = "gemma-2b-preview.gguf",
                     url = "http://example.com/model.gguf",
                     licenseUrl = "", needsAuth = false, preferredBackend = null,
-                    temperature = 0f, topK = 0, topP = 0f
+                    temperature = 0f, topK = 0,
+                    topP = 0f,
+                    llmBackend = LlmBackend.MEDIA_PIPE
                 ),
                 progress = 45f
             ))
@@ -133,7 +136,9 @@ fun ModelDownloadDialogPreview_Error() {
                     internalModelId = "gemma-2b-preview-err.gguf",
                     url = "http://example.com/model.gguf",
                     licenseUrl = "", needsAuth = false, preferredBackend = null,
-                    temperature = 0f, topK = 0, topP = 0f
+                    temperature = 0f, topK = 0,
+                    topP = 0f,
+                    llmBackend = LlmBackend.MEDIA_PIPE
                 ),
                 progress = 30f,
                 errorMessage = "Network connection lost."
@@ -158,7 +163,8 @@ fun ModelDownloadDialogPreview_Completed() {
                     internalModelId = "gemma-2b-preview-comp.gguf",
                     url = "http://example.com/model.gguf",
                     licenseUrl = "", needsAuth = false, preferredBackend = null,
-                    temperature = 0f, topK = 0, topP = 0f
+                    temperature = 0f, topK = 0, topP = 0f,
+                    llmBackend = LlmBackend.MEDIA_PIPE
                 ),
                 progress = 100f,
                 isComplete = true
