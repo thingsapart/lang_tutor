@@ -63,10 +63,6 @@ dependencies {
     // Lifecycle Compose for collectAsStateWithLifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
-    // MediaPipe GenAI (This brings in the new 'litert-api')
-    implementation(libs.mediapipe.tasks.genai)
-    // implementation("com.google.mediapipe:tasks-genai:0.10.24") // This is a duplicate, remove it
-
     // TensorFlow Lite for custom Interpreter usage
     implementation("org.tensorflow:tensorflow-lite:2.17.0") {
         // Exclude the old API to prevent conflict with MediaPipe's new API
@@ -76,6 +72,11 @@ dependencies {
         // Also exclude from the support library for safety
         exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
     }
+
+    // TensorFlow Lite GenAI Task Library and GPU Delegate
+    implementation("org.tensorflow:tensorflow-lite-task-genai:0.4.4")
+    implementation("org.tensorflow:tensorflow-lite-gpu-delegate-plugin:0.4.4")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.12.0")
 
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.6.0")

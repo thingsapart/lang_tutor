@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 import com.thingsapart.langtutor.data.AppDatabase
 import com.thingsapart.langtutor.data.UserSettingsRepository
-import com.thingsapart.langtutor.llm.MediaPipeLlmService
+import com.thingsapart.langtutor.llm.TensorflowLiteLlmService // Updated import
 import com.thingsapart.langtutor.llm.ModelDownloader
 import com.thingsapart.langtutor.ui.AppNavigator
 
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
         val database = AppDatabase.getInstance(applicationContext)
         val modelDownloader = ModelDownloader() // Added
         // Initialize LlmService
-        val llmService = MediaPipeLlmService(applicationContext, modelDownloader = modelDownloader) // Modified
+        val llmService = TensorflowLiteLlmService(applicationContext, modelDownloader = modelDownloader) // Switched to TensorflowLiteLlmService
         // Provide LlmService to ChatRepository
         chatRepository = com.thingsapart.langtutor.data.ChatRepository(
             database.chatDao(),
