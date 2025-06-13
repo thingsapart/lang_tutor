@@ -130,6 +130,44 @@ object ModelManager {
         vocabFileNameInMetadata = "vocab.txt"
     )
 
+    val QWEN_2_5_1_5_B_IT_CPU = LlmModelConfig(
+        modelName = "Qwen2.5 1.5B Instruct (CPU)",
+        internalModelId = "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
+    )
+
+    val QWEN_2_5_1_5_B_IT_GPU = LlmModelConfig(
+        modelName = "Qwen2.5 1.5B Instruct (GPU)",
+        internalModelId = "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/DeepSeek-R1-Distill-Qwen-1.5B/resolve/main/DeepSeek-R1-Distill-Qwen-1.5B_multi-prefill-seq_q8_ekv1280.task?download=true",
+        licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
+        needsAuth = false,
+        preferredBackend = ModelBackend.GPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
+    )
+
     val SMOL_135M_CPU = LlmModelConfig(
         modelName = "SmolLM 135M IT (CPU)",
         internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.task",
@@ -188,15 +226,14 @@ object ModelManager {
         vocabFileNameInMetadata = ""
     )
 
-    // Add more models as needed, e.g., from the user's example list if GGUF versions are available.
-    // For now, keeping it to these two as examples.
-
-    val DEFAULT_MODEL = QWEN_2_5_500M_IT_CPU // Default model to use
+    val DEFAULT_MODEL = QWEN_2_5_1_5_B_IT_CPU // Default model
 
     fun getAllModels(): List<LlmModelConfig> {
         return listOf(
             QWEN_2_5_500M_IT_CPU,
             QWEN_2_5_500M_IT_GPU,
+            QWEN_2_5_1_5_B_IT_CPU,
+            QWEN_2_5_1_5_B_IT_GPU,
             SMOL_135M_CPU,
             SMOL_135M_GPU,
             GEMMA_2B_IT_GPU_MEDIAPIPE_PLACEHOLDER
