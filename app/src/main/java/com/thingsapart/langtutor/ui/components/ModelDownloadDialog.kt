@@ -18,7 +18,7 @@ import com.thingsapart.langtutor.llm.LlmModelConfig
 // Define a state holder for the dialog
 data class ModelDownloadDialogState(
     val showDialog: Boolean = false,
-    val modelInfo: LlmModelConfig? = null,
+    val modelName: String? = null, // Changed from modelInfo: LlmModelConfig?
     val progress: Float = 0f, // 0.0 to 100.0
     val errorMessage: String? = null,
     val isComplete: Boolean = false
@@ -28,10 +28,10 @@ data class ModelDownloadDialogState(
 fun ModelDownloadDialog(
     state: ModelDownloadDialogState,
     onDismissRequest: () -> Unit, // Called when dialog is dismissed (e.g. back press, click outside)
-    onRetry: (LlmModelConfig?) -> Unit,
+    onRetry: () -> Unit, // Changed from onRetry: (LlmModelConfig?) -> Unit
     // onCancel: () -> Unit // Optional: if cancellation is supported during download
 ) {
-    if (!state.showDialog || state.modelInfo == null) {
+    if (!state.showDialog) { // Removed modelInfo null check as it's no longer LlmModelConfig
         return
     }
 
@@ -60,7 +60,7 @@ fun ModelDownloadDialog(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(text = "Model: ${state.modelInfo.modelName}", style = MaterialTheme.typography.body1)
+                Text(text = "Model: ${state.modelName ?: "Unknown"}", style = MaterialTheme.typography.body1) // Updated text display
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (!state.isComplete && state.errorMessage == null) {
@@ -77,7 +77,7 @@ fun ModelDownloadDialog(
                     Text(text = "Error: $it", color = MaterialTheme.colors.error, style = MaterialTheme.typography.caption)
                     Spacer(modifier = Modifier.height(16.dp))
                     Row {
-                        Button(onClick = { onRetry(state.modelInfo) }) {
+                        Button(onClick = { onRetry() }) { // Updated retry button's onClick
                             Text("Retry")
                         }
                         Spacer(modifier = Modifier.width(8.dp))
@@ -105,22 +105,14 @@ fun ModelDownloadDialogPreview_Downloading() {
         var state by remember {
             mutableStateOf(ModelDownloadDialogState(
                 showDialog = true,
-                modelInfo = LlmModelConfig( // Dummy LlmModelConfig
-                    modelName = "Gemma 2B Preview",
-                    internalModelId = "gemma-2b-preview.gguf",
-                    url = "http://example.com/model.gguf",
-                    licenseUrl = "", needsAuth = false, preferredBackend = null,
-                    temperature = 0f, topK = 0,
-                    topP = 0f,
-                    llmBackend = LlmBackend.MEDIA_PIPE
-                ),
+                modelName = "Gemma 2B Preview", // Updated
                 progress = 45f
             ))
         }
         ModelDownloadDialog(
             state = state,
             onDismissRequest = { state = state.copy(showDialog = false) },
-            onRetry = { /* TODO */ }
+            onRetry = {} // Updated
         )
     }
 }
@@ -131,15 +123,7 @@ fun ModelDownloadDialogPreview_Error() {
         var state by remember {
             mutableStateOf(ModelDownloadDialogState(
                 showDialog = true,
-                modelInfo = LlmModelConfig( // Dummy LlmModelConfig
-                     modelName = "Gemma 2B Preview Error",
-                    internalModelId = "gemma-2b-preview-err.gguf",
-                    url = "http://example.com/model.gguf",
-                    licenseUrl = "", needsAuth = false, preferredBackend = null,
-                    temperature = 0f, topK = 0,
-                    topP = 0f,
-                    llmBackend = LlmBackend.MEDIA_PIPE
-                ),
+                modelName = "Gemma 2B Preview Error", // Updated
                 progress = 30f,
                 errorMessage = "Network connection lost."
             ))
@@ -147,7 +131,7 @@ fun ModelDownloadDialogPreview_Error() {
         ModelDownloadDialog(
             state = state,
             onDismissRequest = { state = state.copy(showDialog = false) },
-            onRetry = { /* TODO */ }
+            onRetry = {} // Updated
         )
     }
 }
@@ -158,14 +142,7 @@ fun ModelDownloadDialogPreview_Completed() {
         var state by remember {
             mutableStateOf(ModelDownloadDialogState(
                 showDialog = true,
-                modelInfo = LlmModelConfig( // Dummy LlmModelConfig
-                    modelName = "Gemma 2B Preview Completed",
-                    internalModelId = "gemma-2b-preview-comp.gguf",
-                    url = "http://example.com/model.gguf",
-                    licenseUrl = "", needsAuth = false, preferredBackend = null,
-                    temperature = 0f, topK = 0, topP = 0f,
-                    llmBackend = LlmBackend.MEDIA_PIPE
-                ),
+                modelName = "Gemma 2B Preview Completed", // Updated
                 progress = 100f,
                 isComplete = true
             ))
@@ -173,7 +150,7 @@ fun ModelDownloadDialogPreview_Completed() {
         ModelDownloadDialog(
             state = state,
             onDismissRequest = { state = state.copy(showDialog = false) },
-            onRetry = { /* TODO */ }
+            onRetry = {} // Updated
         )
     }
 }

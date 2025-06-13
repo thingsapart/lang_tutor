@@ -13,11 +13,15 @@ import com.thingsapart.langtutor.data.UserSettingsRepository
 //import com.thingsapart.langtutor.llm.LiteRtLlmService
 import com.thingsapart.langtutor.llm.ModelDownloader
 import com.thingsapart.langtutor.ui.AppNavigator
-import com.thingsapart.langtutor.llm.LlmModelConfig
+// import com.thingsapart.langtutor.llm.LlmModelConfig // Already implicitly imported by ModelManager.* usually
 import com.thingsapart.langtutor.llm.LlmService
 import com.thingsapart.langtutor.llm.MediaPipeLlmService
 import com.thingsapart.langtutor.llm.ModelManager
+// Import AsrModelConfig specifically if not covered by a wildcard import that might exist
+import com.thingsapart.langtutor.llm.AsrModelConfig
+import android.util.Log // Added for logging
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch // Added for launching coroutines, though runBlocking is used here
 import kotlinx.coroutines.runBlocking
 
 class MainActivity : ComponentActivity() {
@@ -33,14 +37,18 @@ class MainActivity : ComponentActivity() {
 
         // Initialize LlmService dynamically
         val llmService: LlmService = runBlocking { // Use runBlocking for simplicity here
+            // ASR model download logic removed from here.
+            // It will be handled within ChatScreen or a dedicated ASR service initialization.
+
+            // Proceed with existing LLM service initialization
             //val selectedModelId = userSettingsRepository.getSelectedModel().first()
             val selectedModelId = ModelManager.DEFAULT_MODEL.internalModelId
             val modelConfig = ModelManager.getAllModels().find { it.internalModelId == selectedModelId } ?: ModelManager.DEFAULT_MODEL
 
             //if (modelConfig.llmBackend == com.thingsapart.langtutor.llm.LlmBackend.MEDIA_PIPE) {
-                MediaPipeLlmService(applicationContext, modelConfig, modelDownloader)
+            MediaPipeLlmService(applicationContext, modelConfig, modelDownloader)
             //} else {
-                //LiteRtLlmService(applicationContext, modelConfig, modelDownloader)
+            //LiteRtLlmService(applicationContext, modelConfig, modelDownloader)
             //}
         }
 

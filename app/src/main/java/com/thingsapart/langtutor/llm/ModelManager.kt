@@ -41,6 +41,15 @@ data class LlmModelConfig(
     val vocabFileNameInMetadata: String = "vocab.txt"
 )
 
+data class AsrModelConfig(
+    val modelName: String,
+    val internalModelId: String, // Used as filename for the model
+    val url: String,
+    val vocabUrl: String? = null,
+    val vocabFileName: String? = null,
+    val isMultilingual: Boolean
+)
+
 class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
     // Private properties for internal resource management
     private val randomAccessFile: RandomAccessFile
@@ -91,6 +100,27 @@ class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
 
 object ModelManager {
     private const val TAG = "ModelManager"
+
+    // Whisper Models for TFlite.
+    //
+    // https://huggingface.co/DocWolle/whisper_tflite_models/tree/main
+    val WHISPER_BASE1_ASR = AsrModelConfig(
+        modelName = "Whisper Base ASR",
+        internalModelId = "whisper-base.tflite",
+        url = "https://huggingface.co/cik009/whisper/resolve/main/whisper-base.tflite",
+        vocabUrl = "https://huggingface.co/cik009/whisper/resolve/main/filters_vocab_multilingual.bin",
+        vocabFileName = "filters_vocab_multilingual.bin",
+        isMultilingual = true
+    )
+
+    val WHISPER_BASE_ASR = AsrModelConfig(
+        modelName = "Whisper Base ASR",
+        internalModelId = "whisper-base.tflite",
+        url = "https://huggingface.co/DocWolle/whisper_tflite_models/resolve/main/whisper-base-transcribe-translate.tflite",
+        vocabUrl = "https://huggingface.co/DocWolle/whisper_tflite_models/resolve/main/filters_vocab_multilingual.bin",
+        vocabFileName = "filters_vocab_multilingual_translate.bin",
+        isMultilingual = true
+    )
 
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (CPU)",
@@ -253,6 +283,35 @@ object ModelManager {
 
     fun checkModelExists(context: Context, modelConfig: LlmModelConfig): Boolean {
         return getLocalModelFile(context, modelConfig).exists()
+    }
+
+    fun getLocalAsrModelFile(context: Context, modelConfig: AsrModelConfig): File {
+        // Use internalModelId as the filename to ensure uniqueness
+        // For now, store in the same directory as LLM models.
+        // Consider a subdirectory like "asr_models" if needed later.
+        val file = File(context.filesDir, modelConfig.internalModelId)
+        Log.i(TAG, "ASR Model ${modelConfig.modelName} local location ${file.absolutePath}.")
+        return file
+    }
+
+    fun getLocalAsrModelPath(context: Context, modelConfig: AsrModelConfig): String {
+        return getLocalAsrModelFile(context, modelConfig).absolutePath
+    }
+
+    fun checkAsrModelExists(context: Context, modelConfig: AsrModelConfig): Boolean {
+        return getLocalAsrModelFile(context, modelConfig).exists()
+    }
+
+    fun getLocalAsrVocabFile(context: Context, modelConfig: AsrModelConfig): File? {
+        return modelConfig.vocabFileName?.let { File(context.filesDir, it) }
+    }
+
+    fun getLocalAsrVocabPath(context: Context, modelConfig: AsrModelConfig): String? {
+        return getLocalAsrVocabFile(context, modelConfig)?.absolutePath
+    }
+
+    fun checkAsrVocabExists(context: Context, modelConfig: AsrModelConfig): Boolean {
+        return getLocalAsrVocabFile(context, modelConfig)?.exists() ?: false
     }
 
     fun getLocalModelMappedFile(context: Context, modelConfig: LlmModelConfig): MappedFile {
