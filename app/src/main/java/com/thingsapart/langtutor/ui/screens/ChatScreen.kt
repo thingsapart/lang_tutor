@@ -57,6 +57,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job // Import for Job
+import kotlinx.coroutines.Dispatchers // Added import
 import java.util.UUID
 
 class FakeLlmService(initialState: LlmServiceState = LlmServiceState.Ready) : LlmService {
@@ -145,9 +146,9 @@ fun ChatScreen(
     var isRecording by remember { mutableStateOf(false) }
 
     var audioHandler by remember { mutableStateOf<AudioHandler?>(null) }
-    var asrModelExists by remember { mutableStateOf(false) }
-    val modelDownloader = remember { ModelDownloader() } // Added
-    var asrDownloadState by remember { mutableStateOf<ModelDownloadDialogState?>(null) } // Added
+    var asrComponentsReady by remember { mutableStateOf(false) } // Renamed from asrModelExists
+    val modelDownloader = remember { ModelDownloader() }
+    var asrDownloadState by remember { mutableStateOf<ModelDownloadDialogState?>(null) }
 
     // Define contrasting colors (these could also come from a Theme extension)
     val textColorOnGradient = SomeDarkColorForText
@@ -170,53 +171,94 @@ fun ChatScreen(
     val llmState by llmService.serviceState.collectAsStateWithLifecycle()
     var downloadDialogController by remember { mutableStateOf(ModelDownloadDialogState(showDialog = false)) }
 
-    // Check for ASR model existence and initiate download if needed
+    // Check for ASR model and vocab existence and initiate download if needed
     LaunchedEffect(Unit) {
-        val modelFileExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)
-        asrModelExists = modelFileExists // Update the existing state
+        val asrConfig = ModelManager.WHISPER_BASE_ASR
+        val modelFileExists = ModelManager.checkAsrModelExists(context, asrConfig)
+        val vocabFileExists = asrConfig.vocabUrl?.let { ModelManager.checkAsrVocabExists(context, asrConfig) } ?: true // Vocab exists if no vocabUrl
 
-        if (!modelFileExists && asrDownloadState == null) { // Only trigger if not exists AND not already downloading/failed
-            Log.i("ChatScreen", "ASR model not found. Initiating download.")
-            asrDownloadState = ModelDownloadDialogState(
-                showDialog = true,
-                modelName = "Whisper ASR Model", // Use generic name
-                progress = 0f,
-                errorMessage = null,
-                isComplete = false
-            )
-            // Launch download in a coroutine
-            coroutineScope.launch { // Ensure coroutineScope is available here
-                val downloadResult = modelDownloader.downloadAsrModel(context, ModelManager.WHISPER_BASE_ASR) { progress ->
+        if (modelFileExists && vocabFileExists) {
+            Log.i("ChatScreen", "ASR model and vocab (if req) already exist.")
+            asrComponentsReady = true
+            asrDownloadState = null // Ensure dialog is hidden
+            return@LaunchedEffect
+        }
+
+        // Only proceed if components aren't ready and dialog isn't already active from a previous attempt in this session
+        if (asrDownloadState != null && asrDownloadState?.showDialog == true) {
+             Log.i("ChatScreen", "ASR download dialog already active or recently handled.")
+             return@LaunchedEffect
+        }
+
+        coroutineScope.launch { // Use existing coroutineScope
+            // Stage 1: Download ASR Model File
+            if (!modelFileExists) {
+                Log.i("ChatScreen", "ASR model file not found. Initiating download.")
+                val dialogModelName = "ASR Model" + if (asrConfig.vocabUrl != null) " (1/2)" else ""
+                asrDownloadState = ModelDownloadDialogState(
+                    showDialog = true, modelName = dialogModelName, progress = 0f
+                )
+                val modelDownloadResult = modelDownloader.downloadAsrModel(context, asrConfig) { progress ->
                     asrDownloadState = asrDownloadState?.copy(progress = progress)
                 }
 
-                if (downloadResult.isSuccess) {
-                    asrDownloadState = asrDownloadState?.copy(isComplete = true, progress = 100f)
-                    // Consider a brief delay before hiding dialog to show "Complete"
-                    // delay(1000) // Optional: For user to see "Complete"
-                    asrModelExists = true // Set this to true to trigger AudioHandler init
-                    // Dialog will be hidden when asrDownloadState is set to null or showDialog = false
-                    // For now, let user dismiss "Complete" dialog
-                } else {
-                    val errorMsg = downloadResult.exceptionOrNull()?.message ?: "Unknown download error"
+                if (modelDownloadResult.isFailure) {
+                    val errorMsg = modelDownloadResult.exceptionOrNull()?.message ?: "Unknown ASR model download error"
                     asrDownloadState = asrDownloadState?.copy(errorMessage = errorMsg, progress = 0f)
                     Log.e("ChatScreen", "ASR model download failed: $errorMsg")
+                    return@launch // Stop further processing
                 }
+                // Don't mark complete yet if vocab needs downloading
+                 asrDownloadState = asrDownloadState?.copy(progress = 100f) // Show 100% for model part
             }
-        } else if (modelFileExists) {
-             Log.i("ChatScreen", "ASR model already exists. No download needed.")
+
+            // Stage 2: Download ASR Vocab File (if specified and not already existing)
+            if (asrConfig.vocabUrl != null && !(ModelManager.checkAsrVocabExists(context, asrConfig))) {
+                Log.i("ChatScreen", "ASR vocab file not found. Initiating download.")
+                val dialogModelName = "ASR Vocab" + if (asrConfig.vocabUrl != null) " (2/2)" else "" // Or just "ASR Vocab"
+                 asrDownloadState = ModelDownloadDialogState( // Reset dialog for vocab
+                    showDialog = true, modelName = dialogModelName, progress = 0f
+                )
+                val vocabDownloadResult = modelDownloader.downloadAsrVocab(context, asrConfig) { progress ->
+                    asrDownloadState = asrDownloadState?.copy(progress = progress)
+                }
+
+                if (vocabDownloadResult.isFailure) {
+                    val errorMsg = vocabDownloadResult.exceptionOrNull()?.message ?: "Unknown ASR vocab download error"
+                    asrDownloadState = asrDownloadState?.copy(errorMessage = errorMsg, progress = 0f)
+                    Log.e("ChatScreen", "ASR vocab download failed: $errorMsg")
+                    return@launch // Stop further processing
+                }
+                 asrDownloadState = asrDownloadState?.copy(progress = 100f) // Show 100% for vocab part
+            }
+
+            // All downloads successful (or files already existed)
+            Log.i("ChatScreen", "All required ASR components are ready.")
+            asrDownloadState = asrDownloadState?.copy(isComplete = true, progress = 100f, modelName = "ASR Components") // Generic completion
+            asrComponentsReady = true
         }
     }
 
     // Initialize AudioHandler
-    LaunchedEffect(hasRecordAudioPermission, asrModelExists) {
-        if (hasRecordAudioPermission && asrModelExists) {
+    LaunchedEffect(hasRecordAudioPermission, asrComponentsReady) { // Changed asrModelExists to asrComponentsReady
+        if (hasRecordAudioPermission && asrComponentsReady) {
             if (audioHandler == null) {
                 val modelPath = ModelManager.getLocalAsrModelPath(context, ModelManager.WHISPER_BASE_ASR)
-                Log.d("ChatScreen", "Initializing AudioHandler with model: $modelPath")
+                val asrConfig = ModelManager.WHISPER_BASE_ASR
+
+                // Determine the vocabulary path to pass
+                val finalVocabPath = if (asrConfig.vocabUrl != null && asrConfig.vocabFileName != null) {
+                    ModelManager.getLocalAsrVocabPath(context, asrConfig)
+                        ?: modelPath // Fallback to modelPath if vocabPath is somehow null despite URL (should not happen if downloaded)
+                } else {
+                    modelPath // Fallback if no vocabUrl is defined in config (maintains previous NPE workaround)
+                }
+
+                Log.d("ChatScreen", "Initializing AudioHandler with model: $modelPath, finalVocabPath: $finalVocabPath")
                 audioHandler = AudioHandler(
                     context = context,
                     modelPath = modelPath,
+                    actualVocabPath = finalVocabPath, // Pass the determined vocab path
                     onTranscriptionUpdate = { transcription ->
                         inputText = transcription
                     },
@@ -227,13 +269,17 @@ fun ChatScreen(
                     },
                     onError = { errorMessage ->
                         Log.e("ChatScreen", "AudioHandler Error: $errorMessage")
-                        Toast.makeText(context, "ASR Error: $errorMessage", Toast.LENGTH_LONG).show()
+                        coroutineScope.launch(Dispatchers.Main) { // Added Dispatchers.Main
+                            Toast.makeText(context, "ASR Error: $errorMessage", Toast.LENGTH_LONG).show()
+                        }
                         if (isRecording) {
-                            // Attempt to stop the recording process through the handler if an error occurs
-                            // This helps ensure the underlying recorder is released/stopped.
-                            audioHandler?.stopRecording() // This will also trigger onRecordingStopped, which sets isRecording = false
+                            // This part itself might also need to be on Main if stopRecording() or isRecording mutation affects UI directly
+                            // However, state changes like isRecording = false are generally safe if they trigger recomposition.
+                            // audioHandler.stopRecording() internally uses its own scope, which is IO, but its callbacks (onRecordingStopped)
+                            // should also dispatch to Main if they update UI directly.
+                            // For now, only the Toast is explicitly moved.
+                            audioHandler?.stopRecording()
                         } else {
-                            // If not actively recording, but an init error occurred, ensure UI reflects it.
                             isRecording = false
                         }
                     },
@@ -280,7 +326,7 @@ fun ChatScreen(
             audioHandler?.release()
             audioHandler = null
             if (!hasRecordAudioPermission) Log.i("ChatScreen", "AudioHandler waiting: Audio permission not yet granted.")
-            if (!asrModelExists) Log.i("ChatScreen", "AudioHandler waiting: ASR Model not yet available/downloaded.")
+            if (!asrComponentsReady) Log.i("ChatScreen", "AudioHandler waiting: ASR components not yet ready.") // Updated log
         }
     }
 
@@ -375,9 +421,9 @@ fun ChatScreen(
                     // by setting asrDownloadState to null and ensuring model isn't marked as existing yet.
                     // The LaunchedEffect(Unit) should re-check and re-initiate.
                     if (asrDownloadState?.errorMessage != null) { // only if retry is for an error
-                        asrModelExists = false
+                        asrComponentsReady = false // Ensure readiness is re-checked
                     }
-                    asrDownloadState = null // This will allow the LaunchedEffect to re-trigger download
+                    asrDownloadState = null // This will allow the LaunchedEffect(Unit) to re-trigger download
                 }
             )
         }
@@ -505,7 +551,7 @@ fun ChatScreen(
                                 Toast.makeText(context, "Audio permission required.", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        enabled = llmState is LlmServiceState.Ready && !isLlmGenerating && asrModelExists
+                        enabled = llmState is LlmServiceState.Ready && !isLlmGenerating && asrComponentsReady
                     ) {
                         Icon(
                             imageVector = if (isRecording) Icons.Filled.Stop else Icons.Filled.Mic,

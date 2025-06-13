@@ -45,8 +45,10 @@ const val WHISPER_MODEL_URL = "https://huggingface.co/cik009/whisper/resolve/mai
 
 data class AsrModelConfig(
     val modelName: String,
-    val internalModelId: String,
-    val url: String
+    val internalModelId: String, // Used as filename for the model
+    val url: String,
+    val vocabUrl: String? = null,
+    val vocabFileName: String? = null
 )
 
 class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
@@ -103,7 +105,9 @@ object ModelManager {
     val WHISPER_BASE_ASR = AsrModelConfig(
         modelName = "Whisper Base ASR",
         internalModelId = "whisper-base.tflite",
-        url = WHISPER_MODEL_URL
+        url = WHISPER_MODEL_URL, // Assuming WHISPER_MODEL_URL is already defined
+        vocabUrl = "https://huggingface.co/cik009/whisper/resolve/main/filters_vocab_multilingual.bin",
+        vocabFileName = "filters_vocab_multilingual.bin"
     )
 
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
@@ -247,6 +251,18 @@ object ModelManager {
 
     fun checkAsrModelExists(context: Context, modelConfig: AsrModelConfig): Boolean {
         return getLocalAsrModelFile(context, modelConfig).exists()
+    }
+
+    fun getLocalAsrVocabFile(context: Context, modelConfig: AsrModelConfig): File? {
+        return modelConfig.vocabFileName?.let { File(context.filesDir, it) }
+    }
+
+    fun getLocalAsrVocabPath(context: Context, modelConfig: AsrModelConfig): String? {
+        return getLocalAsrVocabFile(context, modelConfig)?.absolutePath
+    }
+
+    fun checkAsrVocabExists(context: Context, modelConfig: AsrModelConfig): Boolean {
+        return getLocalAsrVocabFile(context, modelConfig)?.exists() ?: false
     }
 
     fun getLocalModelMappedFile(context: Context, modelConfig: LlmModelConfig): MappedFile {

@@ -82,6 +82,72 @@ class ModelDownloader {
         }
     }
 
+    suspend fun downloadAsrVocab(
+        context: Context,
+        modelConfig: AsrModelConfig,
+        progressCallback: (Float) -> Unit
+    ): Result<File> {
+        return withContext(Dispatchers.IO) {
+            // Check if vocabUrl or vocabFileName is null. If so, cannot download.
+            val vocabUrlString = modelConfig.vocabUrl
+            if (vocabUrlString == null) {
+                return@withContext Result.failure(IllegalArgumentException("vocabUrl is null in AsrModelConfig"))
+            }
+            val vocabFile = ModelManager.getLocalAsrVocabFile(context, modelConfig)
+            if (vocabFile == null) {
+                return@withContext Result.failure(IllegalArgumentException("vocabFileName is null, cannot determine output file for vocab."))
+            }
+
+            // Ensure parent directory exists
+            vocabFile.parentFile?.mkdirs()
+
+            try {
+                val request = Request.Builder().url(vocabUrlString).build()
+                val response = client.newCall(request).execute() // client is the OkHttpClient instance
+
+                if (!response.isSuccessful) {
+                    throw IOException("Download failed: ${response.code} ${response.message}")
+                }
+
+                response.body?.byteStream()?.use { inputStream ->
+                    FileOutputStream(vocabFile).use { outputStream ->
+                        val buffer = ByteArray(4096)
+                        var bytesRead: Int
+                        var totalBytesRead = 0L
+                        val contentLength = response.body?.contentLength() ?: -1L
+                        var lastProgress = -1
+
+                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                            outputStream.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            if (contentLength > 0) {
+                                val progress = (totalBytesRead * 100 / contentLength).toInt()
+                                if (lastProgress != progress) {
+                                    progressCallback(progress.toFloat())
+                                    lastProgress = progress
+                                }
+                            } else {
+                                // Indeterminate progress, report 50% or update frequently
+                                progressCallback(50f)
+                            }
+                        }
+                        outputStream.flush()
+                        // Ensure 100% is reported at the end if determinate
+                        if (contentLength > 0 && lastProgress != 100) progressCallback(100f)
+                        else if (contentLength <=0 && lastProgress == 50) progressCallback(100f) // Ensure 100% for indeterminate too
+                    }
+                }
+                Result.success(vocabFile)
+            } catch (e: Exception) {
+                // Clean up partially downloaded file on error
+                if (vocabFile.exists()) {
+                    vocabFile.delete()
+                }
+                Result.failure(e)
+            }
+        }
+    }
+
     suspend fun downloadAsrModel(
         context: Context,
         modelConfig: AsrModelConfig,
