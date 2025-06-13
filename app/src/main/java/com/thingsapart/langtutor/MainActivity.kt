@@ -37,25 +37,8 @@ class MainActivity : ComponentActivity() {
 
         // Initialize LlmService dynamically
         val llmService: LlmService = runBlocking { // Use runBlocking for simplicity here
-            // Download ASR model first
-            val whisperModelConfig = ModelManager.WHISPER_BASE_ASR
-            if (!ModelManager.checkAsrModelExists(applicationContext, whisperModelConfig)) {
-                Log.d("MainActivity", "Whisper model not found, starting download.")
-                val downloadResult = modelDownloader.downloadAsrModel(applicationContext, whisperModelConfig) { progress ->
-                    Log.d("MainActivity", "Whisper model download progress: $progress%")
-                    // Here, you would ideally update a UI state for a dialog.
-                    // For now, logging is sufficient for the subtask.
-                }
-                if (downloadResult.isFailure) {
-                    Log.e("MainActivity", "Failed to download Whisper model: ${downloadResult.exceptionOrNull()?.message}")
-                    // Handle failure: maybe show an error and prevent app continuation,
-                    // or allow proceeding without ASR functionality. For now, just log.
-                } else {
-                    Log.d("MainActivity", "Whisper model downloaded successfully.")
-                }
-            } else {
-                Log.d("MainActivity", "Whisper model already exists.")
-            }
+            // ASR model download logic removed from here.
+            // It will be handled within ChatScreen or a dedicated ASR service initialization.
 
             // Proceed with existing LLM service initialization
             //val selectedModelId = userSettingsRepository.getSelectedModel().first()

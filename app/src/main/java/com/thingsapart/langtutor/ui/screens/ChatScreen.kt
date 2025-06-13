@@ -24,6 +24,7 @@ import android.widget.Toast // Added
 import androidx.compose.runtime.DisposableEffect // Added
 import com.thingsapart.langtutor.asr.AudioHandler // Added
 // import com.thingsapart.langtutor.llm.ModelManager // Already imported
+import com.thingsapart.langtutor.llm.ModelDownloader // Added
 import android.Manifest // Added
 import android.content.pm.PackageManager // Added
 import androidx.activity.compose.rememberLauncherForActivityResult // Added
@@ -143,8 +144,10 @@ fun ChatScreen(
     var conversationTitle by remember { mutableStateOf("Chat") }
     var isRecording by remember { mutableStateOf(false) }
 
-    var audioHandler by remember { mutableStateOf<AudioHandler?>(null) } // Added
-    var asrModelExists by remember { mutableStateOf(false) } // Added
+    var audioHandler by remember { mutableStateOf<AudioHandler?>(null) }
+    var asrModelExists by remember { mutableStateOf(false) }
+    val modelDownloader = remember { ModelDownloader() } // Added
+    var asrDownloadState by remember { mutableStateOf<ModelDownloadDialogState?>(null) } // Added
 
     // Define contrasting colors (these could also come from a Theme extension)
     val textColorOnGradient = SomeDarkColorForText
@@ -167,17 +170,46 @@ fun ChatScreen(
     val llmState by llmService.serviceState.collectAsStateWithLifecycle()
     var downloadDialogController by remember { mutableStateOf(ModelDownloadDialogState(showDialog = false)) }
 
-    // Check for ASR model existence
-    LaunchedEffect(Unit) { // Added
-        asrModelExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)
-        if (!asrModelExists) {
-            Log.w("ChatScreen", "ASR model not found. Microphone will be disabled.")
-            // Optionally, trigger download here or show a message
+    // Check for ASR model existence and initiate download if needed
+    LaunchedEffect(Unit) {
+        val modelFileExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)
+        asrModelExists = modelFileExists // Update the existing state
+
+        if (!modelFileExists && asrDownloadState == null) { // Only trigger if not exists AND not already downloading/failed
+            Log.i("ChatScreen", "ASR model not found. Initiating download.")
+            asrDownloadState = ModelDownloadDialogState(
+                showDialog = true,
+                modelName = "Whisper ASR Model", // Use generic name
+                progress = 0f,
+                errorMessage = null,
+                isComplete = false
+            )
+            // Launch download in a coroutine
+            coroutineScope.launch { // Ensure coroutineScope is available here
+                val downloadResult = modelDownloader.downloadAsrModel(context, ModelManager.WHISPER_BASE_ASR) { progress ->
+                    asrDownloadState = asrDownloadState?.copy(progress = progress)
+                }
+
+                if (downloadResult.isSuccess) {
+                    asrDownloadState = asrDownloadState?.copy(isComplete = true, progress = 100f)
+                    // Consider a brief delay before hiding dialog to show "Complete"
+                    // delay(1000) // Optional: For user to see "Complete"
+                    asrModelExists = true // Set this to true to trigger AudioHandler init
+                    // Dialog will be hidden when asrDownloadState is set to null or showDialog = false
+                    // For now, let user dismiss "Complete" dialog
+                } else {
+                    val errorMsg = downloadResult.exceptionOrNull()?.message ?: "Unknown download error"
+                    asrDownloadState = asrDownloadState?.copy(errorMessage = errorMsg, progress = 0f)
+                    Log.e("ChatScreen", "ASR model download failed: $errorMsg")
+                }
+            }
+        } else if (modelFileExists) {
+             Log.i("ChatScreen", "ASR model already exists. No download needed.")
         }
     }
 
     // Initialize AudioHandler
-    LaunchedEffect(hasRecordAudioPermission, asrModelExists) { // Added
+    LaunchedEffect(hasRecordAudioPermission, asrModelExists) {
         if (hasRecordAudioPermission && asrModelExists) {
             if (audioHandler == null) {
                 val modelPath = ModelManager.getLocalAsrModelPath(context, ModelManager.WHISPER_BASE_ASR)
@@ -247,8 +279,8 @@ fun ChatScreen(
             // Permission not granted or model doesn't exist, release if already initialized
             audioHandler?.release()
             audioHandler = null
-            if (!hasRecordAudioPermission) Log.d("ChatScreen", "AudioHandler not initialized: Permission denied.")
-            if (!asrModelExists) Log.d("ChatScreen", "AudioHandler not initialized: Model not found.")
+            if (!hasRecordAudioPermission) Log.i("ChatScreen", "AudioHandler waiting: Audio permission not yet granted.")
+            if (!asrModelExists) Log.i("ChatScreen", "AudioHandler waiting: ASR Model not yet available/downloaded.")
         }
     }
 
@@ -275,7 +307,7 @@ fun ChatScreen(
             is LlmServiceState.Downloading -> {
                 downloadDialogController = ModelDownloadDialogState(
                     showDialog = true,
-                    modelInfo = currentLlmState.model,
+                    modelName = currentLlmState.model.modelName, // Updated
                     progress = currentLlmState.progress,
                     isComplete = false,
                     errorMessage = null
@@ -285,7 +317,7 @@ fun ChatScreen(
             is LlmServiceState.Error -> {
                 downloadDialogController = ModelDownloadDialogState(
                     showDialog = true,
-                    modelInfo = currentLlmState.modelBeingProcessed,
+                    modelName = currentLlmState.modelBeingProcessed?.modelName, // Updated
                     progress = downloadDialogController.progress,
                     isComplete = false,
                     errorMessage = currentLlmState.message
@@ -313,13 +345,42 @@ fun ChatScreen(
             onDismissRequest = {
                 downloadDialogController = downloadDialogController.copy(showDialog = false)
             },
-            onRetry = { modelInfo ->
-                Log.d("ChatScreen", "Retry download for model: ${modelInfo?.modelName}")
+            onRetry = {
+                // The model context (which model to retry) is implicit: it's the one that put the dialog in an error state.
+                // We rely on llmService.initialize() to know which model it was processing or to re-evaluate.
+                Log.d("ChatScreen", "Retry download for LLM model: ${downloadDialogController.modelName}")
                 downloadDialogController =
                     downloadDialogController.copy(errorMessage = null, progress = 0f)
                 coroutineScope.launch { llmService.initialize() }
             }
         )
+    }
+
+    // ASR Model Download Dialog
+    asrDownloadState?.let { state ->
+        if (state.showDialog) {
+            ModelDownloadDialog(
+                state = state,
+                onDismissRequest = {
+                    asrDownloadState = if (state.isComplete || state.errorMessage != null) {
+                        null // Hide dialog if complete or error is acknowledged by closing
+                    } else {
+                        // Don't dismiss if download is in progress
+                        state
+                    }
+                },
+                onRetry = {
+                    Log.d("ChatScreen", "Retrying ASR model download.")
+                    // Reset state for retry and re-trigger the LaunchedEffect logic
+                    // by setting asrDownloadState to null and ensuring model isn't marked as existing yet.
+                    // The LaunchedEffect(Unit) should re-check and re-initiate.
+                    if (asrDownloadState?.errorMessage != null) { // only if retry is for an error
+                        asrModelExists = false
+                    }
+                    asrDownloadState = null // This will allow the LaunchedEffect to re-trigger download
+                }
+            )
+        }
     }
 
     LaunchedEffect(key1 = chatId, key2 = languageCode, key3 = topicId) {
