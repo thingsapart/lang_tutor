@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Stop // Import for Stop icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job // Import for Job
 import java.util.UUID
 
 class FakeLlmService(initialState: LlmServiceState = LlmServiceState.Ready) : LlmService {
@@ -107,6 +109,9 @@ fun ChatScreen(
     }
     val messages by messagesFlow.collectAsState(initial = emptyList())
     var inputText by remember { mutableStateOf("") }
+
+    var isLlmGenerating by remember { mutableStateOf(false) }
+    var llmResponseJob by remember { mutableStateOf<Job?>(null) }
 
     val llmState by llmService.serviceState.collectAsStateWithLifecycle()
     var downloadDialogController by remember { mutableStateOf(ModelDownloadDialogState(showDialog = false)) }
@@ -269,6 +274,21 @@ fun ChatScreen(
                         )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
+                    if (isLlmGenerating) {
+                        IconButton(
+                            onClick = {
+                                llmResponseJob?.cancel()
+                                isLlmGenerating = false
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Stop,
+                                contentDescription = "Stop generation",
+                                tint = textColorOnGradient
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     IconButton(
                         onClick = {
                             val currentId = currentChatId
@@ -279,18 +299,23 @@ fun ChatScreen(
                                     timestamp = System.currentTimeMillis(),
                                     isUserMessage = true
                                 )
-                                coroutineScope.launch {
-                                    chatRepository.sendMessage(currentId, userMessage)
-                                    inputText = ""
+                                llmResponseJob = coroutineScope.launch {
+                                    try {
+                                        isLlmGenerating = true
+                                        chatRepository.sendMessage(currentId, userMessage)
+                                    } finally {
+                                        isLlmGenerating = false
+                                    }
                                 }
+                                inputText = ""
                             }
                         },
-                        enabled = currentChatId != null && llmState is LlmServiceState.Ready
+                        enabled = currentChatId != null && llmState is LlmServiceState.Ready && !isLlmGenerating
                     ) {
                         Icon(
                             Icons.Filled.Send,
                             contentDescription = "Send message",
-                            tint = textColorOnGradient // Ensure icon is visible
+                            tint = textColorOnGradient
                         )
                     }
                 }

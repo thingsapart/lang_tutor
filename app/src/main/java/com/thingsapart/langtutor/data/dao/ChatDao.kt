@@ -14,6 +14,15 @@ interface ChatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) // Or OnConflictStrategy.ABORT if messages should be unique if re-inserted
     suspend fun insertMessage(message: ChatMessageEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessageAndGetId(message: ChatMessageEntity): Long
+
+    @Update
+    suspend fun updateMessage(message: ChatMessageEntity)
+
+    @Query("SELECT * FROM messages WHERE id = :messageId")
+    suspend fun getMessageById(messageId: Long): ChatMessageEntity?
+
     @Query("SELECT * FROM conversations ORDER BY lastMessageTimestamp DESC")
     fun getAllConversations(): Flow<List<ChatConversationEntity>>
 

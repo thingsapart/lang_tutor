@@ -64,11 +64,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
     // LiteRT
-    /*
     implementation(libs.litert)
     implementation(libs.litert.support)
     implementation(libs.litert.metadata)
-    */
 
     // MediaPipe
     implementation ("com.google.mediapipe:tasks-genai:0.10.22")

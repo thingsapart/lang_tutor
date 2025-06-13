@@ -30,21 +30,36 @@ class ChatRepository(
         chatDao.insertMessage(userMessage)
         chatDao.updateConversationSummary(conversationId, userMessage.text, userMessage.timestamp)
 
+        // Create an initial AI message placeholder
+        val initialAiMessage = ChatMessageEntity(
+            conversationId = conversationId,
+            text = "...", // Placeholder text
+            timestamp = System.currentTimeMillis(),
+            isUserMessage = false
+        )
+        val aiMessageId = chatDao.insertMessageAndGetId(initialAiMessage)
+        chatDao.updateConversationSummary(conversationId, initialAiMessage.text, initialAiMessage.timestamp)
+
+        var currentAiText = ""
+
         // Get AI response
         // Assuming targetLanguage is stored in the conversation entity or can be fetched
         val conversation = chatDao.getConversationById(conversationId).firstOrNull() // Helper needed in DAO
         val targetLanguage = conversation?.targetLanguageCode ?: "en" // Default or fetch appropriately
 
         llmService.generateResponse(userMessage.text, conversationId, targetLanguage)
-            .collect { aiText -> // Assuming flow emits one complete response for now
-                val aiMessage = ChatMessageEntity(
+            .collect { chunk ->
+                currentAiText = if (currentAiText.isEmpty()) chunk else currentAiText + chunk
+
+                val updatedAiMessage = ChatMessageEntity(
+                    id = aiMessageId, // Use the obtained ID
                     conversationId = conversationId,
-                    text = aiText,
-                    timestamp = System.currentTimeMillis(),
+                    text = currentAiText,
+                    timestamp = initialAiMessage.timestamp, // Keep original timestamp
                     isUserMessage = false
                 )
-                chatDao.insertMessage(aiMessage)
-                chatDao.updateConversationSummary(conversationId, aiMessage.text, aiMessage.timestamp)
+                chatDao.updateMessage(updatedAiMessage)
+                chatDao.updateConversationSummary(conversationId, currentAiText, initialAiMessage.timestamp)
             }
     }
 
