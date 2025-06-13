@@ -3,6 +3,9 @@ package com.thingsapart.langtutor.llm
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okio.use
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
@@ -14,7 +17,71 @@ import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 
 class ModelDownloader {
+    private val client = OkHttpClient()
+
     suspend fun downloadModel(
+        context: Context,
+        modelConfig: LlmModelConfig,
+        progressCallback: (Float) -> Unit
+    ): Result<File> {
+        return withContext(Dispatchers.IO) {
+            val outputFile = File(ModelManager.getLocalModelPath(context, modelConfig))
+
+            try {
+                val requestBuilder = Request.Builder().url(modelConfig.url)
+                val response = client.newCall(requestBuilder.build()).execute()
+
+                /**
+                if (!response.isSuccessful) {
+                if (response.code == UNAUTHORIZED_CODE) {
+                val accessToken = SecureStorage.getToken(context)
+                if (!accessToken.isNullOrEmpty()) {
+                // Remove invalid or expired token
+                SecureStorage.removeToken(context)
+                }
+                throw UnauthorizedAccessException()
+                }
+                throw Exception("Download failed: ${response.code}")
+                }
+                 */
+
+                response.body?.byteStream()?.use { inputStream ->
+                    FileOutputStream(outputFile).use { outputStream ->
+                        val buffer = ByteArray(4096)
+                        var bytesRead: Int
+                        var totalBytesRead = 0L
+                        val contentLength = response.body?.contentLength() ?: -1
+                        var lastProgress = -1
+
+                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                            outputStream.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            val progress = if (contentLength > 0) {
+                                (totalBytesRead * 100 / contentLength).toInt()
+                            } else {
+                                50
+                            }
+                            if (lastProgress != progress) {
+                                progressCallback(progress.toFloat())
+                                lastProgress = progress
+                            }
+                        }
+                        outputStream.flush()
+                    }
+                }
+
+                Result.success(outputFile)
+            } catch (e: Exception) {
+                // Clean up partially downloaded file on error
+                if (outputFile.exists()) {
+                    outputFile.delete()
+                }
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun downloadModelOld(
         context: Context,
         modelConfig: LlmModelConfig,
         progressCallback: (Float) -> Unit

@@ -94,7 +94,7 @@ object ModelManager {
 
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (CPU)",
-        internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.tflite",
+        internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
         url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
@@ -113,7 +113,7 @@ object ModelManager {
 
     val QWEN_2_5_500M_IT_GPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (GPU)",
-        internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.tflite",
+        internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
         url = "https://huggingface.co/litert-community/Qwen2.5-0.5B-Instruct/resolve/main/Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
@@ -132,7 +132,7 @@ object ModelManager {
 
     val SMOL_135M_CPU = LlmModelConfig(
         modelName = "SmolLM 135M IT (CPU)",
-        internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite",
+        internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.task",
         url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
@@ -151,7 +151,7 @@ object ModelManager {
 
     val SMOL_135M_GPU = LlmModelConfig(
         modelName = "SmolLM 135M IT (GPU)",
-        internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.tflite",
+        internalModelId = "SmolLM-135M-Instruct_seq128_q8_ekv1280.task",
         url = "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task?download=true",
         licenseUrl = "https://huggingface.co/Qwen/Qwen2.5-72B-Instruct/blob/main/LICENSE",
         needsAuth = false,
@@ -170,7 +170,7 @@ object ModelManager {
 
     val GEMMA_2B_IT_GPU_MEDIAPIPE_PLACEHOLDER = LlmModelConfig(
         modelName = "Gemma 2B IT (GPU MediaPipe Placeholder)",
-        internalModelId = "gemma-2b-it-gpu-mediapipe-placeholder.tflite", // Placeholder
+        internalModelId = "gemma-2b-it-gpu-mediapipe-placeholder.task", // Placeholder
         url = "https://example.com/gemma-placeholder-model", // Placeholder
         licenseUrl = "https://example.com/gemma-license", // Placeholder
         needsAuth = false,
@@ -205,7 +205,7 @@ object ModelManager {
 
     fun getLocalModelFile(context: Context, modelConfig: LlmModelConfig): File {
         // Use internalModelId as the filename to ensure uniqueness
-        val file = File(context.externalCacheDir, modelConfig.internalModelId)
+        val file = File(context.filesDir, modelConfig.internalModelId)
         Log.i(TAG, "Model ${modelConfig.modelName} local location ${file.absolutePath}.")
         return file
     }

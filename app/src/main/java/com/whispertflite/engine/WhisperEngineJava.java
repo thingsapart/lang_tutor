@@ -1,5 +1,5 @@
 package com.whispertflite.engine;
-
+/**
 import android.content.Context;
 import android.util.Log;
 
@@ -12,9 +12,11 @@ import com.whispertflite.utils.WhisperUtil;
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.Tensor;
+
 //import org.tensorflow.lite.gpu.CompatibilityList;
 //import org.tensorflow.lite.gpu.GpuDelegate;
 //import org.tensorflow.lite.nnapi.NnApiDelegate;
+
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer;
 
 import java.io.FileInputStream;
@@ -259,3 +261,4 @@ public class WhisperEngineJava implements WhisperEngine {
         Log.d(TAG, "==================================================================");
     }
 }
+**/

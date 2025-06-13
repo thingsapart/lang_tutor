@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import com.thingsapart.langtutor.ui.theme.LangTutorAppTheme
 import com.thingsapart.langtutor.data.AppDatabase
 import com.thingsapart.langtutor.data.UserSettingsRepository
-import com.thingsapart.langtutor.llm.LiteRtLlmService
+//import com.thingsapart.langtutor.llm.LiteRtLlmService
 import com.thingsapart.langtutor.llm.ModelDownloader
 import com.thingsapart.langtutor.ui.AppNavigator
 import com.thingsapart.langtutor.llm.LlmModelConfig
@@ -37,11 +37,11 @@ class MainActivity : ComponentActivity() {
             val selectedModelId = ModelManager.DEFAULT_MODEL.internalModelId
             val modelConfig = ModelManager.getAllModels().find { it.internalModelId == selectedModelId } ?: ModelManager.DEFAULT_MODEL
 
-            if (modelConfig.llmBackend == com.thingsapart.langtutor.llm.LlmBackend.MEDIA_PIPE) {
+            //if (modelConfig.llmBackend == com.thingsapart.langtutor.llm.LlmBackend.MEDIA_PIPE) {
                 MediaPipeLlmService(applicationContext, modelConfig, modelDownloader)
-            } else {
-                LiteRtLlmService(applicationContext, modelConfig, modelDownloader)
-            }
+            //} else {
+                //LiteRtLlmService(applicationContext, modelConfig, modelDownloader)
+            //}
         }
 
         // Provide LlmService to ChatRepository

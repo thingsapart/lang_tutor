@@ -14,9 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
-import org.tensorflow.lite.Interpreter
-import org.tensorflow.lite.support.common.FileUtil
-import org.tensorflow.lite.support.metadata.MetadataExtractor
+//import org.tensorflow.lite.Interpreter
+//import org.tensorflow.lite.support.common.FileUtil
+//import org.tensorflow.lite.support.metadata.MetadataExtractor
 import java.io.BufferedReader
 import java.io.File
 import java.io.IOException
@@ -27,6 +27,7 @@ import java.nio.FloatBuffer // Or IntBuffer, depending on model output
 import java.nio.IntBuffer
 import java.nio.channels.FileChannel
 
+/**
 class LiteRtLlmService(
     private val context: Context,
     private val modelConfig: LlmModelConfig = ModelManager.DEFAULT_MODEL, // Ensure ModelManager and LlmModelConfig are accessible
@@ -379,3 +380,4 @@ class LiteRtLlmService(
         }
     }
 }
+**/
