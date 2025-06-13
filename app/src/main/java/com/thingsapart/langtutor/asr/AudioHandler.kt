@@ -18,7 +18,7 @@ class AudioHandler(
     private val onRecordingStopped: () -> Unit,
     private val onError: (String) -> Unit,
     private val onSilenceDetected: () -> Unit
-) : Recorder.RecorderListener, Whisper.WhisperListener {
+) { // Removed Recorder.RecorderListener, Whisper.WhisperListener
 
     private companion object {
         private const val TAG = "AudioHandler"
@@ -44,9 +44,9 @@ class AudioHandler(
 
     init {
         Log.d(TAG, "Initializing AudioHandler...")
-        recorder.setListener(this)
+        recorder.setListener(InternalRecorderListener())
         whisper = Whisper(context)
-        whisper.setListener(this)
+        whisper.setListener(InternalWhisperListener())
         // val outputDir = context.cacheDir // Removed
         // val outputFile = File(outputDir, "recorder_temp_audio.wav") // Removed
         // recorder.setFilePath(outputFile.absolutePath) // Removed
@@ -180,73 +180,85 @@ class AudioHandler(
         }
     }
 
-    // --- Recorder.RecorderListener Implementation ---
-    override fun onUpdateReceived(message: String?) { // This is RecorderListener's onUpdateReceived
-        message?.let {
-            Log.d(TAG, "Recorder Update: $it")
-            when (it) {
-                Recorder.MSG_RECORDING_DONE -> {
-                    Log.d(TAG, "Recording done, starting Whisper processing.")
-                    startWhisperProcessing()
-                    // Consider if onRecordingStopped() should be called here or after Whisper is done.
-                    // The current stopRecording() calls it. If Whisper processing is quick, it might be fine.
-                    // If Whisper processing is long, UI might show "stopped" too early.
-                    // For now, let stopRecording's explicit call handle it.
-                }
-                Recorder.MSG_RECORDING_ERROR -> {
-                    Log.e(TAG, "Recorder reported an error.")
-                    onError("Recording failed.")
-                    // Ensure UI is updated that recording has stopped.
-                    // stopRecording() might have already been called or should be.
-                    // If not, ensure onRecordingStopped() is invoked.
-                    scope.launch { // Ensure this is done within a coroutine context if not already
-                        withContext(Dispatchers.Main) { // If onRecordingStopped updates UI
-                            onRecordingStopped()
-                        }
+    private inner class InternalRecorderListener : Recorder.RecorderListener {
+        override fun onUpdateReceived(message: String?) {
+            message?.let {
+                Log.d(TAG, "Recorder Update: $it") // TAG should be accessible from AudioHandler
+                when (it) {
+                    Recorder.MSG_RECORDING_DONE -> {
+                        Log.d(TAG, "Recording done, starting Whisper processing.")
+                        startWhisperProcessing() // Method in AudioHandler
+                    }
+                    Recorder.MSG_RECORDING_ERROR -> {
+                        Log.e(TAG, "Recorder reported an error.")
+                        onError("Recording failed.") // Method/callback in AudioHandler
+                        // Ensure UI is updated that recording has stopped.
+                        scope.launch(Dispatchers.Main) { // scope and Dispatchers from AudioHandler/imports
+                             onRecordingStopped() // Method/callback in AudioHandler
+                         }
+                    }
+                    Recorder.MSG_RECORDING -> {
+                        Log.d(TAG, "Recorder has started recording (VAD detected speech or VAD disabled).")
+                        // Potentially update UI: e.g., onIsActuallyRecording(true)
                     }
                 }
-                Recorder.MSG_RECORDING -> {
-                    Log.d(TAG, "Recorder has started recording (VAD detected speech or VAD disabled).")
-                    // Potentially update UI: e.g., onIsActuallyRecording(true)
+            }
+        }
+    }
+
+    // --- Listener Implementations ---
+
+    private inner class InternalRecorderListener : Recorder.RecorderListener {
+        override fun onUpdateReceived(message: String?) {
+            message?.let {
+                Log.d(TAG, "Recorder Update: $it") // TAG should be accessible from AudioHandler
+                when (it) {
+                    Recorder.MSG_RECORDING_DONE -> {
+                        Log.d(TAG, "Recording done, starting Whisper processing.")
+                        startWhisperProcessing() // Method in AudioHandler
+                    }
+                    Recorder.MSG_RECORDING_ERROR -> {
+                        Log.e(TAG, "Recorder reported an error.")
+                        onError("Recording failed.") // Method/callback in AudioHandler
+                        // Ensure UI is updated that recording has stopped.
+                        scope.launch(Dispatchers.Main) { // scope and Dispatchers from AudioHandler/imports
+                             onRecordingStopped() // Method/callback in AudioHandler
+                         }
+                    }
+                    Recorder.MSG_RECORDING -> {
+                        Log.d(TAG, "Recorder has started recording (VAD detected speech or VAD disabled).")
+                        // Potentially update UI: e.g., onIsActuallyRecording(true)
+                    }
                 }
-                // other messages from Recorder can be handled here if necessary
             }
         }
     }
 
-    // --- Whisper.WhisperListener Implementation ---
-    override fun onUpdateReceived(message: String) { // This is WhisperListener's onUpdateReceived
-        Log.d(TAG, "Whisper Update: $message")
-        // Example: You could use specific messages to update UI
-        // if (message == Whisper.MSG_PROCESSING) {
-        //    // Update UI to show "Processing..."
-        // } else if (message == Whisper.MSG_PROCESSING_DONE) {
-        //    // Update UI to show "Done."
-        //    // Potentially call onRecordingStopped() here if it means "all ASR actions are complete"
-        // }
-    }
-
-    override fun onResultReceived(whisperResult: WhisperResult) {
-        val transcribedText = whisperResult.result?.trim() ?: ""
-        Log.d(TAG, "Whisper Result: '$transcribedText'")
-
-        if (transcribedText.isNotBlank()) {
-            // The new Whisper flow likely provides the full transcription, not chunks.
-            // So, replace instead of append.
-            currentTranscription = transcribedText
-            scope.launch(Dispatchers.Main) {
-                onTranscriptionUpdate(currentTranscription)
-                lastSpeechTimeMillis = System.currentTimeMillis() // Update last speech time
-            }
-        } else {
-            // Optional: handle empty result if needed, maybe it's just end of speech.
-            // If there was previous non-blank currentTranscription, silence job would have handled it.
-            Log.d(TAG, "Whisper returned an empty or blank result.")
+    private inner class InternalWhisperListener : Whisper.WhisperListener {
+        override fun onUpdateReceived(message: String) { // This is WhisperListener's onUpdateReceived
+            Log.d(TAG, "Whisper Update: $message") // TAG from AudioHandler
+            // Example: You could use specific messages to update UI
+            // if (message == Whisper.MSG_PROCESSING) {
+            //    // Update UI to show "Processing..."
+            // } else if (message == Whisper.MSG_PROCESSING_DONE) {
+            //    // Update UI to show "Done."
+            // }
         }
-        // This callback means Whisper is done with its current task.
-        // If onRecordingStopped() is meant to signify "all processing finished",
-        // it could potentially be called here for certain definitions of "stopped".
-        // However, current plan is that stopRecording() handles its own onRecordingStopped.
+
+        override fun onResultReceived(whisperResult: WhisperResult) {
+            val transcribedText = whisperResult.result?.trim() ?: ""
+            Log.d(TAG, "Whisper Result: '$transcribedText'") // TAG from AudioHandler
+
+            if (transcribedText.isNotBlank()) {
+                currentTranscription = transcribedText // currentTranscription in AudioHandler
+                scope.launch(Dispatchers.Main) { // scope and Dispatchers from AudioHandler/imports
+                    onTranscriptionUpdate(currentTranscription) // Method/callback in AudioHandler
+                    lastSpeechTimeMillis = System.currentTimeMillis() // lastSpeechTimeMillis in AudioHandler
+                }
+            } else {
+                Log.d(TAG, "Whisper returned an empty or blank result.")
+            }
+        }
     }
 
     fun setAction(action: Whisper.Action) {
