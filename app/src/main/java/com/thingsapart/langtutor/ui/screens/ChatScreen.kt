@@ -169,8 +169,6 @@ fun ChatScreen(
     var llmResponseJob by remember { mutableStateOf<Job?>(null) }
 
     val llmState by llmService.serviceState.collectAsStateWithLifecycle()
-    var autoSendAfterTranscription by remember { mutableStateOf(false) }
-    var pendingAutoSendTranscript by remember { mutableStateOf<String?>(null) }
     var downloadDialogController by remember { mutableStateOf(ModelDownloadDialogState(showDialog = false)) }
 
     // Check for ASR model and vocab existence and initiate download if needed
@@ -292,22 +290,41 @@ fun ChatScreen(
                         }
                     },
                     onSilenceDetected = {
-                        // inputText here is the live, possibly partial, transcription.
-                        // We only proceed if there's something that looks like speech.
-                        if (inputText.isNotBlank()) {
-                            Log.d("ChatScreen", "Silence detected. Will attempt auto-send after final transcription.")
-                            autoSendAfterTranscription = true // Set flag to indicate auto-send is desired
-                            coroutineScope.launch { // Keep coroutineScope for stopRecording
-                                audioHandler?.stopRecording()
-                                // DO NOT send message from here directly.
+                        // This callback is triggered by AudioHandler when its VAD detects silence.
+                        // AudioHandler itself does not stop recording.
+                        // We use the current content of `inputText`, which is from the last *full* ASR processing run.
+                        val textToSend = inputText // Capture current inputText
+                        if (textToSend.isNotBlank()) {
+                            Log.d("ChatScreen", "Silence detected by AudioHandler. Auto-sending current inputText: '$textToSend'")
+                            val currentId = currentChatId
+                            if (currentId != null) {
+                                // Use llmResponseJob to manage isLlmGenerating
+                                llmResponseJob = coroutineScope.launch {
+                                    try {
+                                        isLlmGenerating = true
+                                        chatRepository.sendMessage(currentId, ChatMessageEntity(
+                                            conversationId = currentId,
+                                            text = textToSend,
+                                            timestamp = System.currentTimeMillis(),
+                                            isUserMessage = true
+                                        ))
+                                        // If send is successful, clear inputText so it's not re-sent on next silence.
+                                        // New speech will only populate inputText after the next manual stop & ASR cycle.
+                                        inputText = ""
+                                    } catch (e: Exception) {
+                                        Log.e("ChatScreen", "Error during auto-send on silence: ${e.message}", e)
+                                        // Optionally, do not clear inputText if send failed, allowing user to see/resend.
+                                    } finally {
+                                        isLlmGenerating = false
+                                    }
+                                }
                             }
                         } else {
-                            Log.d("ChatScreen", "Silence detected, but no text. Just stopping recording.")
-                            coroutineScope.launch { // Keep coroutineScope for stopRecording
-                                audioHandler?.stopRecording()
-                            }
+                            Log.d("ChatScreen", "Silence detected by AudioHandler, but inputText is blank. No action.")
                         }
-                    }
+                        // CRUCIALLY: Do NOT call audioHandler?.stopRecording() here.
+                        // Recording continues in AudioHandler as per user request.
+                    },
                 )
             }
         } else {
@@ -470,41 +487,6 @@ fun ChatScreen(
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(0)
-        }
-    }
-
-    LaunchedEffect(pendingAutoSendTranscript) {
-        pendingAutoSendTranscript?.let { transcriptToSend ->
-            if (transcriptToSend.isNotBlank()) {
-                val currentId = currentChatId
-                if (currentId != null) {
-                    Log.d("ChatScreen", "Auto-sending message: $transcriptToSend")
-                    val userMessage = ChatMessageEntity(
-                        conversationId = currentId,
-                        text = transcriptToSend,
-                        timestamp = System.currentTimeMillis(),
-                        isUserMessage = true
-                    )
-                    // Ensure isLlmGenerating is managed for this send operation.
-                    // This reuses the existing llmResponseJob and its try/finally for isLlmGenerating.
-                    llmResponseJob = coroutineScope.launch {
-                        try {
-                            isLlmGenerating = true
-                            chatRepository.sendMessage(currentId, userMessage)
-                            // Successfully sent, clear inputText as the user sees the message bubble.
-                            inputText = ""
-                        } catch (e: Exception) {
-                            Log.e("ChatScreen", "Error during auto-send: ${e.message}", e)
-                            // Optionally, inform the user via Toast or by not clearing inputText
-                        } finally {
-                            isLlmGenerating = false
-                        }
-                    }
-                }
-            }
-            // Reset pendingAutoSendTranscript whether sent or not to avoid re-triggering.
-            // If it failed, the transcript remains in inputText for manual send.
-            pendingAutoSendTranscript = null
         }
     }
 

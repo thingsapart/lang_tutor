@@ -135,15 +135,15 @@ class AudioHandler(
                     while (isActive && recorder.isInProgress) {
                         delay(500) // Check every 500ms
                         if (System.currentTimeMillis() - lastSpeechTimeMillis > SILENCE_THRESHOLD_MS) {
-                            if (currentTranscription.isNotBlank()) {
-                                Log.d(TAG, "Silence detected, triggering send.")
-                                onSilenceDetected() // ChatScreen will call stopRecording
-                            } else {
-                                // If silence detected but nothing transcribed, just stop without sending
-                                Log.d(TAG, "Silence detected with no transcription, stopping.")
-                                stopRecording() // Stop directly
+                            // Always call onSilenceDetected. ChatScreen will check its own state (e.g., inputText).
+                            Log.d(TAG, "Silence detected, notifying listener.")
+                            withContext(Dispatchers.Main) { // Ensure callback to ChatScreen is on Main thread
+                                onSilenceDetected()
                             }
-                            break // Stop silence detection for this recording session
+                            lastSpeechTimeMillis = System.currentTimeMillis() // Reset silence timer
+                            // DO NOT call stopRecording() here.
+                            // DO NOT break; the loop should continue to monitor for more silence.
+                            Log.d(TAG, "Silence timer reset. VAD continues monitoring.")
                         }
                     }
                 }
