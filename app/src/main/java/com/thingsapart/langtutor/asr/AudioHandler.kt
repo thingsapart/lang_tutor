@@ -17,7 +17,8 @@ class AudioHandler(
     private val onTranscriptionUpdate: (String) -> Unit,
     private val onRecordingStopped: () -> Unit,
     private val onError: (String) -> Unit,
-    private val onSilenceDetected: () -> Unit
+    private val onSilenceDetected: () -> Unit, // Add comma here
+    private val onTranscriptionCompleteAndSend: (String) -> Unit // New callback
 ) { // Removed Recorder.RecorderListener, Whisper.WhisperListener
 
     private companion object {
@@ -39,6 +40,7 @@ class AudioHandler(
     private var currentAction: Whisper.Action = Whisper.Action.TRANSCRIBE
     private var currentLanguageToken: Int = -1 // Default, potentially 'auto' or English if not multilingual
 
+    private var isManuallyStopping: Boolean = false
     private var isEngineInitialized = false
     private var isHandlerReady = false
 
@@ -156,6 +158,7 @@ class AudioHandler(
 
     fun stopRecording() {
         scope.launch {
+            isManuallyStopping = true // Set flag
             try {
                 silenceJob?.cancel() // Stop silence detection
                 if (recorder.isInProgress) {
@@ -177,6 +180,8 @@ class AudioHandler(
             val currentOnRecordingStoppedCallback = onRecordingStopped // Capture for safety in launch
             scope.launch(Dispatchers.Main + NonCancellable) {
                 currentOnRecordingStoppedCallback()
+                isManuallyStopping = false // Reset flag after callback
+                Log.d(TAG, "isManuallyStopping flag reset to false.")
             }
             }
         }
@@ -192,6 +197,19 @@ class AudioHandler(
                     Recorder.MSG_RECORDING_DONE -> {
                         Log.d(TAG, "Recording done, starting Whisper processing.")
                         startWhisperProcessing() // Method in AudioHandler
+
+                        if (!isManuallyStopping) {
+                            scope.launch {
+                                try {
+                                    Log.d(TAG, "Attempting to restart recorder after VAD-triggered MSG_RECORDING_DONE.")
+                                    recorder.start()
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error trying to restart VAD-triggered recorder: ${e.message}", e)
+                                }
+                            }
+                        } else {
+                            Log.d(TAG, "MSG_RECORDING_DONE received during manual stop, not restarting recorder automatically.")
+                        }
                     }
                     Recorder.MSG_RECORDING_ERROR -> {
                         Log.e(TAG, "Recorder reported an error.")
@@ -229,6 +247,7 @@ class AudioHandler(
                 currentTranscription = transcribedText // currentTranscription in AudioHandler
                 scope.launch(Dispatchers.Main) { // scope and Dispatchers from AudioHandler/imports
                     onTranscriptionUpdate(currentTranscription) // Method/callback in AudioHandler
+                    onTranscriptionCompleteAndSend(currentTranscription) // <<<< ADD THIS LINE
                     lastSpeechTimeMillis = System.currentTimeMillis() // lastSpeechTimeMillis in AudioHandler
                 }
             } else {

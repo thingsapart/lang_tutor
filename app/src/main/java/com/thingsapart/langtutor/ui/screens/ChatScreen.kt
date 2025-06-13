@@ -319,7 +319,9 @@ fun ChatScreen(
                             Log.d("ChatScreen", "Silence detected by AudioHandler. Auto-sending current inputText: '$textToSend'")
                             val currentId = currentChatId
                             if (currentId != null) {
-                                sendMessage()
+                                // Potentially remove or comment out this sendMessage call later if the new mechanism is preferred
+                                // sendMessage()
+                                Log.d("ChatScreen", "onSilenceDetected: Message sending is now primarily handled by onTranscriptionCompleteAndSend.")
                             }
                         } else {
                             Log.d("ChatScreen", "Silence detected by AudioHandler, but inputText is blank. No action.")
@@ -327,6 +329,20 @@ fun ChatScreen(
                         // CRUCIALLY: Do NOT call audioHandler?.stopRecording() here.
                         // Recording continues in AudioHandler as per user request.
                     },
+                    onTranscriptionCompleteAndSend = { transcribedText ->
+                        // transcribedText parameter is available if needed, but inputText is also updated.
+                        if (transcribedText.isNotBlank()) {
+                            Log.d("ChatScreen", "onTranscriptionCompleteAndSend: Received transcription: '$transcribedText'. Sending message.")
+                            // Ensure inputText is up-to-date if sendMessage relies on it solely.
+                            // inputText = transcribedText // This should already be set by onTranscriptionUpdate
+                            val currentId = currentChatId
+                            if (currentId != null) {
+                                sendMessage() // sendMessage() will use the updated inputText
+                            }
+                        } else {
+                            Log.d("ChatScreen", "onTranscriptionCompleteAndSend: Received blank transcription. No action.")
+                        }
+                    }
                 )
             }
         } else {
