@@ -41,6 +41,14 @@ data class LlmModelConfig(
     val vocabFileNameInMetadata: String = "vocab.txt"
 )
 
+const val WHISPER_MODEL_URL = "https://huggingface.co/cik009/whisper/resolve/main/whisper-base.tflite"
+
+data class AsrModelConfig(
+    val modelName: String,
+    val internalModelId: String,
+    val url: String
+)
+
 class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
     // Private properties for internal resource management
     private val randomAccessFile: RandomAccessFile
@@ -91,6 +99,12 @@ class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
 
 object ModelManager {
     private const val TAG = "ModelManager"
+
+    val WHISPER_BASE_ASR = AsrModelConfig(
+        modelName = "Whisper Base ASR",
+        internalModelId = "whisper-base.tflite",
+        url = WHISPER_MODEL_URL
+    )
 
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (CPU)",
@@ -216,6 +230,23 @@ object ModelManager {
 
     fun checkModelExists(context: Context, modelConfig: LlmModelConfig): Boolean {
         return getLocalModelFile(context, modelConfig).exists()
+    }
+
+    fun getLocalAsrModelFile(context: Context, modelConfig: AsrModelConfig): File {
+        // Use internalModelId as the filename to ensure uniqueness
+        // For now, store in the same directory as LLM models.
+        // Consider a subdirectory like "asr_models" if needed later.
+        val file = File(context.filesDir, modelConfig.internalModelId)
+        Log.i(TAG, "ASR Model ${modelConfig.modelName} local location ${file.absolutePath}.")
+        return file
+    }
+
+    fun getLocalAsrModelPath(context: Context, modelConfig: AsrModelConfig): String {
+        return getLocalAsrModelFile(context, modelConfig).absolutePath
+    }
+
+    fun checkAsrModelExists(context: Context, modelConfig: AsrModelConfig): Boolean {
+        return getLocalAsrModelFile(context, modelConfig).exists()
     }
 
     fun getLocalModelMappedFile(context: Context, modelConfig: LlmModelConfig): MappedFile {

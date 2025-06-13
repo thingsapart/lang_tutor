@@ -1,6 +1,7 @@
 package com.thingsapart.langtutor.llm
 
 import android.content.Context
+import com.thingsapart.langtutor.llm.AsrModelConfig // Added import
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -70,6 +71,64 @@ class ModelDownloader {
                     }
                 }
 
+                Result.success(outputFile)
+            } catch (e: Exception) {
+                // Clean up partially downloaded file on error
+                if (outputFile.exists()) {
+                    outputFile.delete()
+                }
+                Result.failure(e)
+            }
+        }
+    }
+
+    suspend fun downloadAsrModel(
+        context: Context,
+        modelConfig: AsrModelConfig,
+        progressCallback: (Float) -> Unit
+    ): Result<File> {
+        return withContext(Dispatchers.IO) {
+            val outputFile = ModelManager.getLocalAsrModelFile(context, modelConfig)
+
+            try {
+                val requestBuilder = Request.Builder().url(modelConfig.url)
+                val response = client.newCall(requestBuilder.build()).execute()
+
+                if (!response.isSuccessful) {
+                    throw IOException("Download failed: ${response.code} ${response.message}")
+                }
+
+                response.body?.byteStream()?.use { inputStream ->
+                    FileOutputStream(outputFile).use { outputStream ->
+                        val buffer = ByteArray(4096)
+                        var bytesRead: Int
+                        var totalBytesRead = 0L
+                        val contentLength = response.body?.contentLength() ?: -1
+                        var lastProgress = -1
+
+                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                            outputStream.write(buffer, 0, bytesRead)
+                            totalBytesRead += bytesRead
+                            val progress = if (contentLength > 0) {
+                                (totalBytesRead * 100 / contentLength).toInt()
+                            } else {
+                                // Fallback for unknown content length, report 50% then 100%
+                                50 // Or handle differently, e.g., based on bytes downloaded
+                            }
+                            if (lastProgress != progress) {
+                                progressCallback(progress.toFloat())
+                                lastProgress = progress
+                            }
+                        }
+                        outputStream.flush()
+                        // Ensure 100% is reported at the end if not already
+                        if (lastProgress != 100 && contentLength > 0) {
+                             progressCallback(100f)
+                        } else if (contentLength <= 0 && lastProgress == 50) { // If content length was unknown
+                            progressCallback(100f)
+                        }
+                    }
+                }
                 Result.success(outputFile)
             } catch (e: Exception) {
                 // Clean up partially downloaded file on error

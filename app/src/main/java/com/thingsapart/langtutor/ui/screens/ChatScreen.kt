@@ -6,15 +6,30 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items // Ensure this import is present
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.Icons // Ensure Icons is imported generally
+import androidx.compose.material.icons.filled.Mic // Added
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop // Import for Stop icon
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue // Added
+import androidx.compose.runtime.mutableStateOf // Added
+import androidx.compose.runtime.remember // Added
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color // Ensure this is imported
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import android.widget.Toast // Added
+import androidx.compose.runtime.DisposableEffect // Added
+import com.thingsapart.langtutor.asr.AudioHandler // Added
+// import com.thingsapart.langtutor.llm.ModelManager // Already imported
+import android.Manifest // Added
+import android.content.pm.PackageManager // Added
+import androidx.activity.compose.rememberLauncherForActivityResult // Added
+import androidx.activity.result.contract.ActivityResultContracts // Added
+import androidx.core.content.ContextCompat // Added
+// import android.util.Log // Already imported
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.thingsapart.langtutor.data.AppDatabase
@@ -90,13 +105,49 @@ fun ChatScreen(
     userSettingsRepository: UserSettingsRepository,
     llmService: LlmService // Changed to LlmService interface
 ) {
+    val context = LocalContext.current // Added
+    var hasRecordAudioPermission by remember { // Added
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult( // Added
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            hasRecordAudioPermission = isGranted
+            if (isGranted) {
+                Log.d("ChatScreen", "RECORD_AUDIO permission granted.")
+            } else {
+                Log.d("ChatScreen", "RECORD_AUDIO permission denied.")
+                // Optionally, show a snackbar or dialog explaining why permission is needed.
+            }
+        }
+    )
+
+    val requestAudioPermission: () -> Unit = { // Added
+        if (!hasRecordAudioPermission) {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        } else {
+            // Permission already granted, proceed with recording logic (to be added)
+            Log.d("ChatScreen", "Audio permission already granted. Ready to record.")
+        }
+    }
+
     val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     var currentChatId by remember { mutableStateOf(chatId) }
     var conversationTitle by remember { mutableStateOf("Chat") }
+    var isRecording by remember { mutableStateOf(false) }
+
+    var audioHandler by remember { mutableStateOf<AudioHandler?>(null) } // Added
+    var asrModelExists by remember { mutableStateOf(false) } // Added
 
     // Define contrasting colors (these could also come from a Theme extension)
-    val textColorOnGradient = SomeDarkColorForText // Use a predefined dark color for high contrast
+    val textColorOnGradient = SomeDarkColorForText
     val userBubbleBackgroundColor = UserBubbleColor
     val aiBubbleBackgroundColor = AiBubbleColor
     val textOnUserBubbleColor = SomeDarkColorForText
@@ -115,6 +166,99 @@ fun ChatScreen(
 
     val llmState by llmService.serviceState.collectAsStateWithLifecycle()
     var downloadDialogController by remember { mutableStateOf(ModelDownloadDialogState(showDialog = false)) }
+
+    // Check for ASR model existence
+    LaunchedEffect(Unit) { // Added
+        asrModelExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)
+        if (!asrModelExists) {
+            Log.w("ChatScreen", "ASR model not found. Microphone will be disabled.")
+            // Optionally, trigger download here or show a message
+        }
+    }
+
+    // Initialize AudioHandler
+    LaunchedEffect(hasRecordAudioPermission, asrModelExists) { // Added
+        if (hasRecordAudioPermission && asrModelExists) {
+            if (audioHandler == null) {
+                val modelPath = ModelManager.getLocalAsrModelPath(context, ModelManager.WHISPER_BASE_ASR)
+                Log.d("ChatScreen", "Initializing AudioHandler with model: $modelPath")
+                audioHandler = AudioHandler(
+                    context = context,
+                    modelPath = modelPath,
+                    onTranscriptionUpdate = { transcription ->
+                        inputText = transcription
+                    },
+                    onRecordingStopped = {
+                        isRecording = false
+                        // inputText is already updated by onTranscriptionUpdate
+                        Log.d("ChatScreen", "AudioHandler: Recording stopped callback.")
+                    },
+                    onError = { errorMessage ->
+                        Log.e("ChatScreen", "AudioHandler Error: $errorMessage")
+                        Toast.makeText(context, "ASR Error: $errorMessage", Toast.LENGTH_LONG).show()
+                        if (isRecording) {
+                            // Attempt to stop the recording process through the handler if an error occurs
+                            // This helps ensure the underlying recorder is released/stopped.
+                            audioHandler?.stopRecording() // This will also trigger onRecordingStopped, which sets isRecording = false
+                        } else {
+                            // If not actively recording, but an init error occurred, ensure UI reflects it.
+                            isRecording = false
+                        }
+                    },
+                    onSilenceDetected = { // Added callback
+                        if (inputText.isNotBlank()) {
+                            Log.d("ChatScreen", "Silence detected, auto-sending message: $inputText")
+                            coroutineScope.launch {
+                                audioHandler?.stopRecording() // This will set isRecording = false via onRecordingStopped
+                                // isRecording = false // Explicitly ensure, though stopRecording should handle it.
+
+                                val currentId = currentChatId
+                                if (currentId != null) {
+                                    val userMessage = ChatMessageEntity(
+                                        conversationId = currentId,
+                                        text = inputText,
+                                        timestamp = System.currentTimeMillis(),
+                                        isUserMessage = true
+                                    )
+                                    llmResponseJob = coroutineScope.launch {
+                                        try {
+                                            isLlmGenerating = true
+                                            chatRepository.sendMessage(currentId, userMessage)
+                                        } finally {
+                                            isLlmGenerating = false
+                                        }
+                                    }
+                                    // inputText = "" // Clearing inputText after send.
+                                    // Let user see what was sent, or clear if preferred.
+                                    // For now, transcription remains until next recording starts.
+                                }
+                            }
+                        } else {
+                            Log.d("ChatScreen", "Silence detected, but no text to send. Stopping recording.")
+                            coroutineScope.launch {
+                                audioHandler?.stopRecording()
+                                // isRecording = false // Explicitly ensure
+                            }
+                        }
+                    }
+                )
+            }
+        } else {
+            // Permission not granted or model doesn't exist, release if already initialized
+            audioHandler?.release()
+            audioHandler = null
+            if (!hasRecordAudioPermission) Log.d("ChatScreen", "AudioHandler not initialized: Permission denied.")
+            if (!asrModelExists) Log.d("ChatScreen", "AudioHandler not initialized: Model not found.")
+        }
+    }
+
+    // Dispose AudioHandler
+    DisposableEffect(Unit) { // Added
+        onDispose {
+            Log.d("ChatScreen", "Disposing AudioHandler.")
+            audioHandler?.release()
+        }
+    }
 
     LaunchedEffect(llmService) {
         if (llmState is LlmServiceState.Idle || llmState is LlmServiceState.Error) {
@@ -274,49 +418,92 @@ fun ChatScreen(
                         )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
+
+                    // New Microphone Button
+                    IconButton(
+                        onClick = {
+                            requestAudioPermission()
+                            if (hasRecordAudioPermission) {
+                                if (audioHandler != null && asrModelExists) {
+                                    isRecording = !isRecording
+                                    if (isRecording) {
+                                        inputText = "" // Clear text field when starting recording
+                                        Log.d("ChatScreen", "Starting recording via AudioHandler.")
+                                        audioHandler?.startRecording()
+                                    } else {
+                                        Log.d("ChatScreen", "Stopping recording via AudioHandler.")
+                                        audioHandler?.stopRecording()
+                                        // Transcription is updated via onTranscriptionUpdate by AudioHandler
+                                    }
+                                } else {
+                                    Log.w("ChatScreen", "AudioHandler not ready or ASR model missing.")
+                                    Toast.makeText(context, "ASR system not ready. Model downloaded? ${ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)}", Toast.LENGTH_SHORT).show()
+                                }
+                            } else {
+                                Log.d("ChatScreen", "Mic clicked, permission pending/denied. Request was launched.")
+                                Toast.makeText(context, "Audio permission required.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = llmState is LlmServiceState.Ready && !isLlmGenerating && asrModelExists
+                    ) {
+                        Icon(
+                            imageVector = if (isRecording) Icons.Filled.Stop else Icons.Filled.Mic,
+                            contentDescription = if (isRecording) "Stop recording" else "Start recording",
+                            tint = textColorOnGradient
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp)) // Spacer between mic and send/stop
+
+                    // Conditional Button: Stop for LLM generation or Send
                     if (isLlmGenerating) {
                         IconButton(
                             onClick = {
                                 llmResponseJob?.cancel()
                                 isLlmGenerating = false
+                                if (isRecording) {
+                                    isRecording = false
+                                    Log.d("ChatScreen", "LLM Stop also stopped recording.")
+                                    audioHandler?.stopRecording() // Stop ASR if LLM is stopped.
+                                }
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.Stop,
+                                imageVector = Icons.Filled.Stop, // This is for LLM stop
                                 contentDescription = "Stop generation",
                                 tint = textColorOnGradient
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    IconButton(
-                        onClick = {
-                            val currentId = currentChatId
-                            if (inputText.isNotBlank() && currentId != null) {
-                                val userMessage = ChatMessageEntity(
-                                    conversationId = currentId,
-                                    text = inputText,
-                                    timestamp = System.currentTimeMillis(),
-                                    isUserMessage = true
-                                )
-                                llmResponseJob = coroutineScope.launch {
-                                    try {
-                                        isLlmGenerating = true
-                                        chatRepository.sendMessage(currentId, userMessage)
-                                    } finally {
-                                        isLlmGenerating = false
+                    } else {
+                        // Send Button - only shown if not generating LLM response
+                        IconButton(
+                            onClick = {
+                                val currentId = currentChatId
+                                if (inputText.isNotBlank() && currentId != null) {
+                                    val userMessage = ChatMessageEntity(
+                                        conversationId = currentId,
+                                        text = inputText,
+                                        timestamp = System.currentTimeMillis(),
+                                        isUserMessage = true
+                                    )
+                                    llmResponseJob = coroutineScope.launch {
+                                        try {
+                                            isLlmGenerating = true
+                                            chatRepository.sendMessage(currentId, userMessage)
+                                        } finally {
+                                            isLlmGenerating = false
+                                        }
                                     }
+                                    inputText = ""
                                 }
-                                inputText = ""
-                            }
-                        },
-                        enabled = currentChatId != null && llmState is LlmServiceState.Ready && !isLlmGenerating
-                    ) {
-                        Icon(
-                            Icons.Filled.Send,
-                            contentDescription = "Send message",
-                            tint = textColorOnGradient
-                        )
+                            },
+                            enabled = currentChatId != null && llmState is LlmServiceState.Ready && !isRecording // Disable send if recording
+                        ) {
+                            Icon(
+                                Icons.Filled.Send,
+                                contentDescription = "Send message",
+                                tint = textColorOnGradient
+                            )
+                        }
                     }
                 }
             }
