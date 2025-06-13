@@ -17,8 +17,10 @@ class AudioHandler(
     private val onTranscriptionUpdate: (String) -> Unit,
     private val onRecordingStopped: () -> Unit,
     private val onError: (String) -> Unit,
-    private val onSilenceDetected: () -> Unit, // Add comma here
-    private val onTranscriptionCompleteAndSend: (String) -> Unit // New callback
+    private val onSilenceDetected: () -> Unit,
+    private val onTranscriptionCompleteAndSend: (String) -> Unit,
+    val onSpeechActive: (Boolean) -> Unit, // New callback for VAD state
+    val onTranscriptionProcessStateChange: (Boolean) -> Unit // New callback for transcription state
 ) { // Removed Recorder.RecorderListener, Whisper.WhisperListener
 
     private companion object {
@@ -94,21 +96,26 @@ class AudioHandler(
         if (!isEngineInitialized) {
             Log.e(TAG, "Whisper not initialized, cannot start processing.")
             onError("ASR engine not ready.")
+            onTranscriptionProcessStateChange(false) // Ensure state is reset on error
             return
         }
         if (whisper.isInProgress) {
             Log.d(TAG, "Whisper processing is already in progress.")
+            // Consider if state should be set to true here if it can get stuck, or if this is fine
             return
         }
         scope.launch {
             Log.d(TAG, "Starting Whisper processing. Action: $currentAction, Language Token: $currentLanguageToken")
-            whisper.setLanguage(currentLanguageToken) // Set language
-            whisper.setAction(currentAction)         // Set action (transcribe/translate)
-            whisper.start()                          // Start processing
-            // Optional: Provide some feedback that processing has started
-            // withContext(Dispatchers.Main) {
-            //     onTranscriptionUpdate("Processing...") // Or a more specific status update
-            // }
+            onTranscriptionProcessStateChange(true) // Transcription started
+            try {
+                whisper.setLanguage(currentLanguageToken) // Set language
+                whisper.setAction(currentAction)         // Set action (transcribe/translate)
+                whisper.start()                          // Start processing
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception during whisper.start(): ${e.message}", e)
+                onError("ASR processing start error: ${e.message}")
+                onTranscriptionProcessStateChange(false) // Ensure state is reset on error
+            }
         }
     }
 
@@ -194,9 +201,19 @@ class AudioHandler(
             message?.let {
                 Log.d(TAG, "Recorder Update: $it") // TAG should be accessible from AudioHandler
                 when (it) {
+                    // Assuming Recorder.java might send these messages for VAD activity
+                    "MSG_VAD_SPEECH_START" -> { // Placeholder message name
+                        Log.d(TAG, "VAD: Speech detected by recorder.")
+                        onSpeechActive(true)
+                    }
+                    "MSG_VAD_SPEECH_END" -> { // Placeholder message name
+                        Log.d(TAG, "VAD: Silence detected by recorder (end of speech).")
+                        onSpeechActive(false)
+                    }
                     Recorder.MSG_RECORDING_DONE -> {
                         Log.d(TAG, "Recording done, starting Whisper processing.")
                         startWhisperProcessing() // Method in AudioHandler
+                        onSpeechActive(false) // Speech ended leading to recording done
 
                         if (!isManuallyStopping) {
                             scope.launch {
@@ -214,6 +231,7 @@ class AudioHandler(
                     Recorder.MSG_RECORDING_ERROR -> {
                         Log.e(TAG, "Recorder reported an error.")
                         onError("Recording failed.") // Method/callback in AudioHandler
+                        onSpeechActive(false) // Recording error implies speech is not active
                         // Ensure UI is updated that recording has stopped.
                         scope.launch(Dispatchers.Main) { // scope and Dispatchers from AudioHandler/imports
                              onRecordingStopped() // Method/callback in AudioHandler
@@ -221,7 +239,11 @@ class AudioHandler(
                     }
                     Recorder.MSG_RECORDING -> {
                         Log.d(TAG, "Recorder has started recording (VAD detected speech or VAD disabled).")
-                        // Potentially update UI: e.g., onIsActuallyRecording(true)
+                        // This MSG_RECORDING might be the actual VAD speech start indicator in some Recorder implementations
+                        // If "MSG_VAD_SPEECH_START" is not available, this could be used for onSpeechActive(true)
+                        // For now, let's assume specific VAD messages or rely on MSG_RECORDING_DONE to signal end of active speech segment.
+                        // To be safe, we can call onSpeechActive(true) here if no explicit start message is found.
+                        onSpeechActive(true)
                     }
                 }
             }
@@ -253,6 +275,7 @@ class AudioHandler(
             } else {
                 Log.d(TAG, "Whisper returned an empty or blank result.")
             }
+            onTranscriptionProcessStateChange(false) // Transcription finished
         }
     }
 

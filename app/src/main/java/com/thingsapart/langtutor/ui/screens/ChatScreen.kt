@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons // Ensure Icons is imported generally
 import androidx.compose.material.icons.filled.Mic // Added
+import androidx.compose.material.icons.filled.MoreHoriz // Add if not present
+import androidx.compose.material.icons.filled.GraphicEq // Add if not present
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop // Import for Stop icon
 import androidx.compose.runtime.*
@@ -144,6 +146,8 @@ fun ChatScreen(
     var currentChatId by remember { mutableStateOf(chatId) }
     var conversationTitle by remember { mutableStateOf("Chat") }
     var isRecording by remember { mutableStateOf(false) }
+    var isSoundBeingDetected by remember { mutableStateOf(false) } // New state
+    var isTranscribing by remember { mutableStateOf(false) }       // New state
 
     var audioHandler by remember { mutableStateOf<AudioHandler?>(null) }
     var asrComponentsReady by remember { mutableStateOf(false) } // Renamed from asrModelExists
@@ -289,10 +293,9 @@ fun ChatScreen(
                         inputText = transcription
                     },
                     onRecordingStopped = {
-                        // isRecording = false
-                        if (isRecording) { audioHandler?.startRecording() }
-                        // inputText is already updated by onTranscriptionUpdate
-                        Log.d("ChatScreen", "AudioHandler: Recording stopped callback.")
+                        isRecording = false // Ensure isRecording state is updated
+                        // The problematic line 'if (isRecording) { audioHandler?.startRecording() }' should be removed.
+                        Log.d("ChatScreen", "AudioHandler: Recording stopped callback. isRecording set to false.")
                     },
                     onError = { errorMessage ->
                         Log.e("ChatScreen", "AudioHandler Error: $errorMessage")
@@ -309,6 +312,8 @@ fun ChatScreen(
                         } else {
                             isRecording = false
                         }
+                        isTranscribing = false // Also ensure transcribing state is reset on error
+                        isSoundBeingDetected = false // Reset sound detection on error
                     },
                     onSilenceDetected = {
                         // This callback is triggered by AudioHandler when its VAD detects silence.
@@ -342,6 +347,15 @@ fun ChatScreen(
                         } else {
                             Log.d("ChatScreen", "onTranscriptionCompleteAndSend: Received blank transcription. No action.")
                         }
+                    },
+                    // Add the new callbacks here
+                    onSpeechActive = { isActive ->
+                        isSoundBeingDetected = isActive
+                        Log.d("ChatScreen", "onSpeechActive: isActive = $isActive")
+                    },
+                    onTranscriptionProcessStateChange = { isProcessing ->
+                        isTranscribing = isProcessing
+                        Log.d("ChatScreen", "onTranscriptionProcessStateChange: isProcessing = $isProcessing")
                     }
                 )
             }
@@ -557,16 +571,24 @@ fun ChatScreen(
                             if (hasRecordAudioPermission) {
                                 val asrModelExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_DEFAULT_MODEL)
                                 if (audioHandler != null && asrModelExists) {
-                                    isRecording = !isRecording
-                                    if (isRecording) {
-                                        inputText = "" // Clear text field when starting recording
+                                    // The isRecording state toggle should be fine as is.
+                                    // If it's currently recording, and we're not transcribing or detecting sound,
+                                    // this click means "stop".
+                                    // If it's not recording, this click means "start".
+                                    // If it is recording and in a special state (transcribing/sound detected),
+                                    // this click should still likely mean "stop".
+                                    val newIsRecording = !isRecording
+                                    if (newIsRecording) {
+                                        // Start recording
+                                        isRecording = true
+                                        inputText = ""
                                         Log.d("ChatScreen", "Starting recording via AudioHandler.")
                                         audioHandler?.startRecording()
                                     } else {
-                                        Log.d("ChatScreen", "Stopping recording via AudioHandler.")
+                                        // Stop recording
                                         isRecording = false
+                                        Log.d("ChatScreen", "Stopping recording via AudioHandler.")
                                         audioHandler?.stopRecording()
-                                        // Transcription is updated via onTranscriptionUpdate by AudioHandler
                                     }
                                 } else {
                                     Log.w("ChatScreen", "AudioHandler not ready or ASR model missing.")
@@ -579,9 +601,21 @@ fun ChatScreen(
                         },
                         enabled = llmState is LlmServiceState.Ready && !isLlmGenerating && asrComponentsReady
                     ) {
+                        val iconImage = when {
+                            isRecording && isTranscribing -> Icons.Filled.MoreHoriz
+                            isRecording && isSoundBeingDetected -> Icons.Filled.GraphicEq
+                            isRecording -> Icons.Filled.Stop
+                            else -> Icons.Filled.Mic
+                        }
+                        val contentDesc = when {
+                            isRecording && isTranscribing -> "Transcribing audio..."
+                            isRecording && isSoundBeingDetected -> "Sound detected"
+                            isRecording -> "Stop recording"
+                            else -> "Start recording"
+                        }
                         Icon(
-                            imageVector = if (isRecording) Icons.Filled.Stop else Icons.Filled.Mic,
-                            contentDescription = if (isRecording) "Stop recording" else "Start recording",
+                            imageVector = iconImage,
+                            contentDescription = contentDesc,
                             tint = textColorOnGradient
                         )
                     }
