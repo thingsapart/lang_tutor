@@ -258,7 +258,8 @@ fun ChatScreen(
                 audioHandler = AudioHandler(
                     context = context,
                     modelPath = modelPath,
-                    actualVocabPath = finalVocabPath, // Pass the determined vocab path
+                    vocabPath = finalVocabPath,
+                    isMultilingual = ModelManager.WHISPER_BASE_ASR.isMultilingual,
                     onTranscriptionUpdate = { transcription ->
                         inputText = transcription
                     },
@@ -531,6 +532,7 @@ fun ChatScreen(
                         onClick = {
                             requestAudioPermission()
                             if (hasRecordAudioPermission) {
+                                val asrModelExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)
                                 if (audioHandler != null && asrModelExists) {
                                     isRecording = !isRecording
                                     if (isRecording) {

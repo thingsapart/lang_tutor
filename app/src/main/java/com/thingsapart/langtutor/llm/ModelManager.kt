@@ -41,14 +41,13 @@ data class LlmModelConfig(
     val vocabFileNameInMetadata: String = "vocab.txt"
 )
 
-const val WHISPER_MODEL_URL = "https://huggingface.co/cik009/whisper/resolve/main/whisper-base.tflite"
-
 data class AsrModelConfig(
     val modelName: String,
     val internalModelId: String, // Used as filename for the model
     val url: String,
     val vocabUrl: String? = null,
-    val vocabFileName: String? = null
+    val vocabFileName: String? = null,
+    val isMultilingual: Boolean
 )
 
 class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
@@ -102,12 +101,22 @@ class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
 object ModelManager {
     private const val TAG = "ModelManager"
 
+    val WHISPER_BASE1_ASR = AsrModelConfig(
+        modelName = "Whisper Base ASR",
+        internalModelId = "whisper-base.tflite",
+        url = "https://huggingface.co/cik009/whisper/resolve/main/whisper-base.tflite",
+        vocabUrl = "https://huggingface.co/cik009/whisper/resolve/main/filters_vocab_multilingual.bin",
+        vocabFileName = "filters_vocab_multilingual.bin",
+        isMultilingual = true
+    )
+
     val WHISPER_BASE_ASR = AsrModelConfig(
         modelName = "Whisper Base ASR",
         internalModelId = "whisper-base.tflite",
-        url = WHISPER_MODEL_URL, // Assuming WHISPER_MODEL_URL is already defined
-        vocabUrl = "https://huggingface.co/cik009/whisper/resolve/main/filters_vocab_multilingual.bin",
-        vocabFileName = "filters_vocab_multilingual.bin"
+        url = "https://huggingface.co/DocWolle/whisper_tflite_models/resolve/main/whisper-base-transcribe-translate.tflite",
+        vocabUrl = "https://huggingface.co/DocWolle/whisper_tflite_models/resolve/main/filters_vocab_multilingual.bin",
+        vocabFileName = "filters_vocab_multilingual_translate.bin",
+        isMultilingual = true
     )
 
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(

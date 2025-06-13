@@ -12,7 +12,8 @@ import java.io.IOException
 class AudioHandler(
     private val context: Context,
     private val modelPath: String,
-    private val actualVocabPath: String, // Added actualVocabPath
+    private val vocabPath: String,
+    private val isMultilingual: Boolean,
     private val onTranscriptionUpdate: (String) -> Unit,
     private val onRecordingStopped: () -> Unit,
     private val onError: (String) -> Unit,
@@ -34,11 +35,6 @@ class AudioHandler(
     private var currentTranscription: String = ""
     private var lastSpeechTimeMillis: Long = 0
 
-    // Assuming vocabPath might be optional or derived. For now, allowing null.
-    // If WhisperUtil requires a specific vocab file, this needs to be provided.
-    // private val vocabPath: String? = null // Removed internal vocabPath property
-    private val isMultilingual = false // Defaulting to false for 'whisper-base.tflite'
-
     private var isEngineInitialized = false
     private var isHandlerReady = false
 
@@ -53,8 +49,8 @@ class AudioHandler(
 
         scope.launch {
             try {
-                Log.d(TAG, "Initializing WhisperEngine with model: $modelPath, vocab: $actualVocabPath") // Updated log
-                isEngineInitialized = whisperEngine.initialize(modelPath, actualVocabPath, isMultilingual) // Use actualVocabPath
+                Log.d(TAG, "Initializing WhisperEngine with model: $modelPath, vocab: $vocabPath") // Updated log
+                isEngineInitialized = whisperEngine.initialize(modelPath, vocabPath, isMultilingual) // Use actualVocabPath
                 if (isEngineInitialized) {
                     Log.d(TAG, "WhisperEngine initialized successfully.")
                     isHandlerReady = true
@@ -137,7 +133,7 @@ class AudioHandler(
                 // onRecordingStopped() // Recorder.java's onUpdateReceived("Recording done...!") will handle this
                 // and ChatScreen will set isRecording = false.
                 // Let's explicitly call it from here after recorder.stop() to ensure UI consistency.
-                 if (isActive) { // Ensure coroutine scope is still active
+                if (isActive) { // Ensure coroutine scope is still active
                     withContext(Dispatchers.Main) { // If onRecordingStopped updates UI
                         onRecordingStopped()
                     }
