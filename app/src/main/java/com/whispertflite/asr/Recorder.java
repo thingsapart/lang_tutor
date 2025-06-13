@@ -15,7 +15,7 @@ import com.konovalov.vad.webrtc.VadWebRTC;
 import com.konovalov.vad.webrtc.config.FrameSize;
 import com.konovalov.vad.webrtc.config.Mode;
 import com.konovalov.vad.webrtc.config.SampleRate;
-import com.whispertflite.R;
+import com.thingsapart.langtutor.R;
 
 import java.io.ByteArrayOutputStream;
 

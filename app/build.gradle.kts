@@ -71,6 +71,9 @@ dependencies {
     // MediaPipe
     implementation ("com.google.mediapipe:tasks-genai:0.10.22")
 
+    // VAD - Android Voice Activity Detection
+    implementation("com.github.gkonovalov.android-vad:webrtc:2.0.9")
+
     // Jetpack Compose
     implementation("androidx.compose.ui:ui:1.6.0")
     implementation("androidx.compose.material:material:1.6.0")

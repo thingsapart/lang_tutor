@@ -9,6 +9,7 @@ import android.util.Log;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -25,7 +26,6 @@ public class WhisperUtil {
     public static final int WHISPER_N_MEL = 80;
     public static final int WHISPER_HOP_LENGTH = 160;
     public static final int WHISPER_CHUNK_SIZE = 30;
-    public static final int WHISPER_MEL_LEN = 3000;
 
     private final WhisperVocab vocab = new WhisperVocab();
     private final WhisperFilter filters = new WhisperFilter();
@@ -64,7 +64,7 @@ public class WhisperUtil {
         return vocab.tokenBEG;
     }
 
-    public String getWordFromToken(int token) {
+    public byte[] getWordFromToken(int token) {
         return vocab.tokenToWord.get(token);
     }
 
@@ -79,10 +79,10 @@ public class WhisperUtil {
 
         // @magic:USEN
         int magic = vocabBuf.getInt();
-        if (magic == 0x5553454e || magic == 0x74666c74) {
+        if (magic == 0x5553454e) {
             Log.d(TAG, "Magic number: " + magic);
         } else {
-            Log.d(TAG, "Invalid vocab file (bad magic: 0x" + java.lang.Integer.toHexString(magic) + "), " + vocabPath);
+            Log.d(TAG, "Invalid vocab file (bad magic: " + magic + "), " + vocabPath);
             return false;
         }
 
@@ -108,8 +108,7 @@ public class WhisperUtil {
             int len = vocabBuf.getInt();
             byte[] wordBytes = new byte[len];
             vocabBuf.get(wordBytes, 0, wordBytes.length);
-            String word = new String(wordBytes);
-            vocab.tokenToWord.put(i, word);
+            vocab.tokenToWord.put(i, wordBytes);
         }
 
         // Add additional vocab ids
@@ -144,7 +143,7 @@ public class WhisperUtil {
                 word = "[_extra_token_" + i + "]";
             }
 
-            vocab.tokenToWord.put(i, word);
+            vocab.tokenToWord.put(i, word.getBytes(StandardCharsets.UTF_8));
             //Log.d(TAG, "i= " + i + ", word= " + word);
         }
 
@@ -152,7 +151,8 @@ public class WhisperUtil {
     }
 
     // nSamples size => WHISPER_SAMPLE_RATE * WHISPER_CHUNK_SIZE => 480000
-    public float[] getMelSpectrogram(float[] samples, int nSamples, int nThreads) {
+    // meaningfulSamples is the part which contains recorded data
+    public float[] getMelSpectrogram(float[] samples, int nSamples, int meaningfulSamples, int nThreads) {
 
         int fftSize = WHISPER_N_FFT;
         int fftStep = WHISPER_HOP_LENGTH;
@@ -161,6 +161,9 @@ public class WhisperUtil {
         mel.nLen = nSamples / fftStep;
         mel.data = new float[mel.nMel * mel.nLen];
 
+        // Calculate the number of meaningful frames
+        int meaningfulFrames = meaningfulSamples / fftStep;
+
         float[] hann = new float[fftSize];
         for (int i = 0; i < fftSize; i++) {
             hann[i] = (float) (0.5 * (1.0 - cos(2.0 * Math.PI * i / fftSize)));
@@ -168,7 +171,6 @@ public class WhisperUtil {
 
         int nFft = 1 + fftSize / 2;
 
-/////////////// UNCOMMENT below block to use multithreaded mel calculation /////////////////////////
         // Calculate mel values using multiple threads
         List<Thread> workers = new ArrayList<>();
         for (int iw = 0; iw < nThreads; iw++) {
@@ -181,55 +183,52 @@ public class WhisperUtil {
                 Arrays.fill(fftIn, 0.0f);
                 float[] fftOut = new float[fftSize * 2];
 
-                for (int i = ith; i < mel.nLen; i += nThreads) {
-/////////////// END of Block ///////////////////////////////////////////////////////////////////////
+                for (int i = ith; i < meaningfulFrames; i += nThreads) { // Limit to meaningful frames
 
-/////////////// COMMENT below block to use multithreaded mel calculation ///////////////////////////
-//        float[] fftIn = new float[fftSize];
-//        Arrays.fill(fftIn, 0.0f);
-//        float[] fftOut = new float[fftSize * 2];
-//
-//        for (int i = 0; i < mel.nLen; i++) {
-/////////////// END of Block ///////////////////////////////////////////////////////////////////////
+                    int offset = i * fftStep;
 
-            int offset = i * fftStep;
+                    // apply Hanning window
+                    for (int j = 0; j < fftSize; j++) {
+                        if (offset + j < meaningfulSamples) { // Limit to meaningful samples
+                            fftIn[j] = hann[j] * samples[offset + j];
+                        } else {
+                            fftIn[j] = 0.0f;
+                        }
+                    }
 
-            // apply Hanning window
-            for (int j = 0; j < fftSize; j++) {
-                if (offset + j < nSamples) {
-                    fftIn[j] = hann[j] * samples[offset + j];
-                } else {
-                    fftIn[j] = 0.0f;
-                }
-            }
+                    // FFT -> mag^2
+                    fft(fftIn, fftOut);
+                    for (int j = 0; j < fftSize; j++) {
+                        fftOut[j] = fftOut[2 * j] * fftOut[2 * j] + fftOut[2 * j + 1] * fftOut[2 * j + 1];
+                    }
 
-            // FFT -> mag^2
-            fft(fftIn, fftOut);
-            for (int j = 0; j < fftSize; j++) {
-                fftOut[j] = fftOut[2 * j] * fftOut[2 * j] + fftOut[2 * j + 1] * fftOut[2 * j + 1];
-            }
+                    for (int j = 1; j < fftSize / 2; j++) {
+                        fftOut[j] += fftOut[fftSize - j];
+                    }
 
-            for (int j = 1; j < fftSize / 2; j++) {
-                fftOut[j] += fftOut[fftSize - j];
-            }
+                    // mel spectrogram
+                    for (int j = 0; j < mel.nMel; j++) {
+                        double sum = 0.0;
+                        for (int k = 0; k < nFft; k++) {
+                            sum += (fftOut[k] * filters.data[j * nFft + k]);
+                        }
 
-            // mel spectrogram
-            for (int j = 0; j < mel.nMel; j++) {
-                double sum = 0.0;
-                for (int k = 0; k < nFft; k++) {
-                    sum += (fftOut[k] * filters.data[j * nFft + k]);
-                }
+                        if (sum < 1e-10) {
+                            sum = 1e-10;
+                        }
 
-                if (sum < 1e-10) {
-                    sum = 1e-10;
+                        sum = log10(sum);
+                        mel.data[j * mel.nLen + i] = (float) sum;
+                    }
                 }
 
-                sum = log10(sum);
-                mel.data[j * mel.nLen + i] = (float) sum;
-            }
-        }
+                // Pad the remaining frames with a default value (e.g., -8.0)
+                for (int i = ith + meaningfulFrames; i < mel.nLen; i += nThreads) {
+                    for (int j = 0; j < mel.nMel; j++) {
+                        mel.data[j * mel.nLen + i] = -8.0f; // Default padding value
+                    }
+                }
 
-/////////////// UNCOMMENT below block to use multithreaded mel calculation /////////////////////////
             });
             workers.add(thread);
             thread.start();
@@ -243,7 +242,6 @@ public class WhisperUtil {
                 e.printStackTrace();
             }
         }
-/////////////// END of Block ///////////////////////////////////////////////////////////////////////
 
         // clamping and normalization
         double mmax = -1e20;
@@ -327,10 +325,6 @@ public class WhisperUtil {
 
     // Helper class definitions
     private static class WhisperVocab {
-        int[] golden_generated_ids = {
-                50257, 50362, 1770, 13, 2264, 346, 353, 318,
-                262, 46329, 286, 262, 3504, 6097, 11, 290, 356, 389, 9675, 284, 7062
-        };
 
         // Token types
         int tokenEOT = 50256; // end of transcript
@@ -347,7 +341,7 @@ public class WhisperUtil {
         // Vocab types
         final int nVocabEnglish = 51864;       // for english only vocab
         final int nVocabMultilingual = 51865;  // for multilingual vocab
-        Map<Integer, String> tokenToWord = new HashMap<>();
+        Map<Integer, byte[]> tokenToWord = new HashMap<Integer, byte[]>();
     }
 
     private static class WhisperFilter {
@@ -361,4 +355,5 @@ public class WhisperUtil {
         int nMel = 0;
         float[] data;
     }
+
 }

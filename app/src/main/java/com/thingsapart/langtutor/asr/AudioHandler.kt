@@ -180,32 +180,6 @@ class AudioHandler(
         }
     }
 
-    private inner class InternalRecorderListener : Recorder.RecorderListener {
-        override fun onUpdateReceived(message: String?) {
-            message?.let {
-                Log.d(TAG, "Recorder Update: $it") // TAG should be accessible from AudioHandler
-                when (it) {
-                    Recorder.MSG_RECORDING_DONE -> {
-                        Log.d(TAG, "Recording done, starting Whisper processing.")
-                        startWhisperProcessing() // Method in AudioHandler
-                    }
-                    Recorder.MSG_RECORDING_ERROR -> {
-                        Log.e(TAG, "Recorder reported an error.")
-                        onError("Recording failed.") // Method/callback in AudioHandler
-                        // Ensure UI is updated that recording has stopped.
-                        scope.launch(Dispatchers.Main) { // scope and Dispatchers from AudioHandler/imports
-                             onRecordingStopped() // Method/callback in AudioHandler
-                         }
-                    }
-                    Recorder.MSG_RECORDING -> {
-                        Log.d(TAG, "Recorder has started recording (VAD detected speech or VAD disabled).")
-                        // Potentially update UI: e.g., onIsActuallyRecording(true)
-                    }
-                }
-            }
-        }
-    }
-
     // --- Listener Implementations ---
 
     private inner class InternalRecorderListener : Recorder.RecorderListener {
