@@ -1,21 +1,21 @@
 package com.thingsapart.langtutor.llm
 
 import android.content.Context
-import com.thingsapart.langtutor.llm.AsrModelConfig // Added import
+import com.thingsapart.langtutor.llm.AsrModelConfig
+import android.os.PowerManager
+import androidx.core.content.ContextCompat.getSystemService
+import androidx.room.RoomSQLiteQuery.Companion.acquire
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.use
-import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.MappedByteBuffer
-import java.nio.channels.FileChannel
+
 
 class ModelDownloader {
     private val client = OkHttpClient()
@@ -216,6 +216,15 @@ class ModelDownloader {
             var connection: HttpURLConnection? = null
             var outputStream: FileOutputStream? = null
 
+            val wl: PowerManager.WakeLock =
+                (context.getSystemService(Context.POWER_SERVICE) as PowerManager).run {
+                    newWakeLock(
+                        PowerManager.PARTIAL_WAKE_LOCK,
+                        "ModelDownloader::ModelDownload"
+                    )
+                }
+
+
             try {
                 // Ensure parent directory exists
                 targetFile.parentFile?.mkdirs()
@@ -238,6 +247,7 @@ class ModelDownloader {
 
                 // Initialize progress to 0%
                 progressCallback(0f)
+                wl.acquire(1000)
 
                 while (connection.inputStream.read(buffer).also { bytesRead = it } != -1) {
                     outputStream.write(buffer, 0, bytesRead)
@@ -264,6 +274,7 @@ class ModelDownloader {
             } finally {
                 outputStream?.close()
                 connection?.disconnect()
+                wl.release()
             }
         }
     }
