@@ -262,11 +262,6 @@ fun ChatScreen(
                     isMultilingual = ModelManager.WHISPER_DEFAULT_MODEL.isMultilingual,
                     onTranscriptionUpdate = { transcription ->
                         inputText = transcription
-                        // New logic:
-                        if (autoSendAfterTranscription && transcription.isNotBlank()) {
-                            pendingAutoSendTranscript = transcription
-                            autoSendAfterTranscription = false // Reset the flag
-                        }
                     },
                     onRecordingStopped = {
                         isRecording = false
