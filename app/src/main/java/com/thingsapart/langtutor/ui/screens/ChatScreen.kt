@@ -169,6 +169,8 @@ fun ChatScreen(
     var llmResponseJob by remember { mutableStateOf<Job?>(null) }
 
     val llmState by llmService.serviceState.collectAsStateWithLifecycle()
+    var autoSendAfterTranscription by remember { mutableStateOf(false) }
+    var pendingAutoSendTranscript by remember { mutableStateOf<String?>(null) }
     var downloadDialogController by remember { mutableStateOf(ModelDownloadDialogState(showDialog = false)) }
 
     // Check for ASR model and vocab existence and initiate download if needed
@@ -262,6 +264,11 @@ fun ChatScreen(
                     isMultilingual = ModelManager.WHISPER_DEFAULT_MODEL.isMultilingual,
                     onTranscriptionUpdate = { transcription ->
                         inputText = transcription
+                        // New logic:
+                        if (autoSendAfterTranscription && transcription.isNotBlank()) {
+                            pendingAutoSendTranscript = transcription
+                            autoSendAfterTranscription = false // Reset the flag
+                        }
                     },
                     onRecordingStopped = {
                         isRecording = false
@@ -284,39 +291,20 @@ fun ChatScreen(
                             isRecording = false
                         }
                     },
-                    onSilenceDetected = { // Added callback
+                    onSilenceDetected = {
+                        // inputText here is the live, possibly partial, transcription.
+                        // We only proceed if there's something that looks like speech.
                         if (inputText.isNotBlank()) {
-                            Log.d("ChatScreen", "Silence detected, auto-sending message: $inputText")
-                            coroutineScope.launch {
-                                audioHandler?.stopRecording() // This will set isRecording = false via onRecordingStopped
-                                // isRecording = false // Explicitly ensure, though stopRecording should handle it.
-
-                                val currentId = currentChatId
-                                if (currentId != null) {
-                                    val userMessage = ChatMessageEntity(
-                                        conversationId = currentId,
-                                        text = inputText,
-                                        timestamp = System.currentTimeMillis(),
-                                        isUserMessage = true
-                                    )
-                                    llmResponseJob = coroutineScope.launch {
-                                        try {
-                                            isLlmGenerating = true
-                                            chatRepository.sendMessage(currentId, userMessage)
-                                        } finally {
-                                            isLlmGenerating = false
-                                        }
-                                    }
-                                    // inputText = "" // Clearing inputText after send.
-                                    // Let user see what was sent, or clear if preferred.
-                                    // For now, transcription remains until next recording starts.
-                                }
+                            Log.d("ChatScreen", "Silence detected. Will attempt auto-send after final transcription.")
+                            autoSendAfterTranscription = true // Set flag to indicate auto-send is desired
+                            coroutineScope.launch { // Keep coroutineScope for stopRecording
+                                audioHandler?.stopRecording()
+                                // DO NOT send message from here directly.
                             }
                         } else {
-                            Log.d("ChatScreen", "Silence detected, but no text to send. Stopping recording.")
-                            coroutineScope.launch {
+                            Log.d("ChatScreen", "Silence detected, but no text. Just stopping recording.")
+                            coroutineScope.launch { // Keep coroutineScope for stopRecording
                                 audioHandler?.stopRecording()
-                                // isRecording = false // Explicitly ensure
                             }
                         }
                     }
@@ -640,7 +628,7 @@ fun ChatScreen(
                                     inputText = ""
                                 }
                             },
-                            enabled = currentChatId != null && llmState is LlmServiceState.Ready && !isRecording && !isLlmGenerating
+                            enabled = currentChatId != null && llmState is LlmServiceState.Ready && !isRecording // Disable send if recording
                         ) {
                             Icon(
                                 Icons.Filled.Send,
