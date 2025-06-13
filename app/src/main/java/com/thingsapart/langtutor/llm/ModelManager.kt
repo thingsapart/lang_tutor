@@ -101,6 +101,9 @@ class MappedFile(file: File, mode: FileChannel.MapMode) : Closeable {
 object ModelManager {
     private const val TAG = "ModelManager"
 
+    // Whisper Models for TFlite.
+    //
+    // https://huggingface.co/DocWolle/whisper_tflite_models/tree/main
     val WHISPER_BASE1_ASR = AsrModelConfig(
         modelName = "Whisper Base ASR",
         internalModelId = "whisper-base.tflite",
