@@ -191,7 +191,7 @@ object ModelManager {
     // Add more models as needed, e.g., from the user's example list if GGUF versions are available.
     // For now, keeping it to these two as examples.
 
-    val DEFAULT_MODEL = SMOL_135M_CPU // Default model to use
+    val DEFAULT_MODEL = QWEN_2_5_500M_IT_CPU // Default model to use
 
     fun getAllModels(): List<LlmModelConfig> {
         return listOf(
