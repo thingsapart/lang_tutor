@@ -135,15 +135,15 @@ class AudioHandler(
                     while (isActive && recorder.isInProgress) {
                         delay(500) // Check every 500ms
                         if (System.currentTimeMillis() - lastSpeechTimeMillis > SILENCE_THRESHOLD_MS) {
-                            if (currentTranscription.isNotBlank()) {
-                                Log.d(TAG, "Silence detected, triggering send.")
-                                onSilenceDetected() // ChatScreen will call stopRecording
-                            } else {
-                                // If silence detected but nothing transcribed, just stop without sending
-                                Log.d(TAG, "Silence detected with no transcription, stopping.")
-                                stopRecording() // Stop directly
+                            // Always call onSilenceDetected. ChatScreen will check its own state (e.g., inputText).
+                            Log.d(TAG, "Silence detected, notifying listener.")
+                            withContext(Dispatchers.Main) { // Ensure callback to ChatScreen is on Main thread
+                                onSilenceDetected()
                             }
-                            break // Stop silence detection for this recording session
+                            lastSpeechTimeMillis = System.currentTimeMillis() // Reset silence timer
+                            // DO NOT call stopRecording() here.
+                            // DO NOT break; the loop should continue to monitor for more silence.
+                            Log.d(TAG, "Silence timer reset. VAD continues monitoring.")
                         }
                     }
                 }
@@ -171,11 +171,13 @@ class AudioHandler(
                 // onRecordingStopped() // Recorder.java's onUpdateReceived("Recording done...!") will handle this
                 // and ChatScreen will set isRecording = false.
                 // Let's explicitly call it from here after recorder.stop() to ensure UI consistency.
-                if (isActive) { // Ensure coroutine scope is still active
-                    withContext(Dispatchers.Main) { // If onRecordingStopped updates UI
-                        onRecordingStopped()
-                    }
-                }
+            // Ensure onRecordingStopped is called even if the parent scope is cancelling.
+            // The callback itself (onRecordingStopped) is responsible for being safe if its receiver (ChatScreen) is disposed.
+            // It runs on Dispatchers.Main.
+            val currentOnRecordingStoppedCallback = onRecordingStopped // Capture for safety in launch
+            scope.launch(Dispatchers.Main + NonCancellable) {
+                currentOnRecordingStoppedCallback()
+            }
             }
         }
     }
