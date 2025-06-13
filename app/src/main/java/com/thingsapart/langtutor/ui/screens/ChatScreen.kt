@@ -485,6 +485,41 @@ fun ChatScreen(
         }
     }
 
+    LaunchedEffect(pendingAutoSendTranscript) {
+        pendingAutoSendTranscript?.let { transcriptToSend ->
+            if (transcriptToSend.isNotBlank()) {
+                val currentId = currentChatId
+                if (currentId != null) {
+                    Log.d("ChatScreen", "Auto-sending message: $transcriptToSend")
+                    val userMessage = ChatMessageEntity(
+                        conversationId = currentId,
+                        text = transcriptToSend,
+                        timestamp = System.currentTimeMillis(),
+                        isUserMessage = true
+                    )
+                    // Ensure isLlmGenerating is managed for this send operation.
+                    // This reuses the existing llmResponseJob and its try/finally for isLlmGenerating.
+                    llmResponseJob = coroutineScope.launch {
+                        try {
+                            isLlmGenerating = true
+                            chatRepository.sendMessage(currentId, userMessage)
+                            // Successfully sent, clear inputText as the user sees the message bubble.
+                            inputText = ""
+                        } catch (e: Exception) {
+                            Log.e("ChatScreen", "Error during auto-send: ${e.message}", e)
+                            // Optionally, inform the user via Toast or by not clearing inputText
+                        } finally {
+                            isLlmGenerating = false
+                        }
+                    }
+                }
+            }
+            // Reset pendingAutoSendTranscript whether sent or not to avoid re-triggering.
+            // If it failed, the transcript remains in inputText for manual send.
+            pendingAutoSendTranscript = null
+        }
+    }
+
     MetallicPanelGradientBackground(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             // Make Scaffold background transparent to see the gradient
@@ -605,7 +640,7 @@ fun ChatScreen(
                                     inputText = ""
                                 }
                             },
-                            enabled = currentChatId != null && llmState is LlmServiceState.Ready && !isRecording // Disable send if recording
+                            enabled = currentChatId != null && llmState is LlmServiceState.Ready && !isRecording && !isLlmGenerating
                         ) {
                             Icon(
                                 Icons.Filled.Send,

@@ -171,11 +171,13 @@ class AudioHandler(
                 // onRecordingStopped() // Recorder.java's onUpdateReceived("Recording done...!") will handle this
                 // and ChatScreen will set isRecording = false.
                 // Let's explicitly call it from here after recorder.stop() to ensure UI consistency.
-                if (isActive) { // Ensure coroutine scope is still active
-                    withContext(Dispatchers.Main) { // If onRecordingStopped updates UI
-                        onRecordingStopped()
-                    }
-                }
+            // Ensure onRecordingStopped is called even if the parent scope is cancelling.
+            // The callback itself (onRecordingStopped) is responsible for being safe if its receiver (ChatScreen) is disposed.
+            // It runs on Dispatchers.Main.
+            val currentOnRecordingStoppedCallback = onRecordingStopped // Capture for safety in launch
+            scope.launch(Dispatchers.Main + NonCancellable) {
+                currentOnRecordingStoppedCallback()
+            }
             }
         }
     }
