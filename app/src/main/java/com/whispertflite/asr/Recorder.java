@@ -10,15 +10,15 @@ import android.util.Log;
 
 import androidx.core.app.ActivityCompat;
 
-import com.whispertflite.utils.WaveUtil;
+import com.konovalov.vad.webrtc.Vad;
+import com.konovalov.vad.webrtc.VadWebRTC;
+import com.konovalov.vad.webrtc.config.FrameSize;
+import com.konovalov.vad.webrtc.config.Mode;
+import com.konovalov.vad.webrtc.config.SampleRate;
+import com.whispertflite.R;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -28,8 +28,6 @@ public class Recorder {
 
     public interface RecorderListener {
         void onUpdateReceived(String message);
-
-        void onDataReceived(float[] samples);
     }
 
     private static final String TAG = "Recorder";
@@ -37,17 +35,20 @@ public class Recorder {
     public static final String ACTION_RECORD = "Record";
     public static final String MSG_RECORDING = "Recording...";
     public static final String MSG_RECORDING_DONE = "Recording done...!";
+    public static final String MSG_RECORDING_ERROR = "Recording error...";
 
     private final Context mContext;
     private final AtomicBoolean mInProgress = new AtomicBoolean(false);
 
-    private String mWavFilePath;
     private RecorderListener mListener;
     private final Lock lock = new ReentrantLock();
     private final Condition hasTask = lock.newCondition();
     private final Object fileSavedLock = new Object(); // Lock object for wait/notify
 
     private volatile boolean shouldStartRecording = false;
+    private boolean useVAD = false;
+    private VadWebRTC vad = null;
+    private static final int VAD_FRAME_SIZE = 480;
 
     private final Thread workerThread;
 
@@ -63,9 +64,6 @@ public class Recorder {
         this.mListener = listener;
     }
 
-    public void setFilePath(String wavFile) {
-        this.mWavFilePath = wavFile;
-    }
 
     public void start() {
         if (!mInProgress.compareAndSet(false, true)) {
@@ -74,6 +72,7 @@ public class Recorder {
         }
         lock.lock();
         try {
+            Log.d(TAG, "Recording starts now");
             shouldStartRecording = true;
             hasTask.signal();
         } finally {
@@ -81,7 +80,21 @@ public class Recorder {
         }
     }
 
+    public void initVad(){
+        vad = Vad.builder()
+                .setSampleRate(SampleRate.SAMPLE_RATE_16K)
+                .setFrameSize(FrameSize.FRAME_SIZE_480)
+                .setMode(Mode.VERY_AGGRESSIVE)
+                .setSilenceDurationMs(800)
+                .setSpeechDurationMs(200)
+                .build();
+        useVAD = true;
+        Log.d(TAG, "VAD initialized");
+    }
+
+
     public void stop() {
+        Log.d(TAG, "Recording stopped");
         mInProgress.set(false);
 
         // Wait for the recording thread to finish
@@ -103,10 +116,6 @@ public class Recorder {
             mListener.onUpdateReceived(message);
     }
 
-    private void sendData(float[] samples) {
-        if (mListener != null)
-            mListener.onDataReceived(samples);
-    }
 
     private void recordLoop() {
         while (true) {
@@ -138,99 +147,93 @@ public class Recorder {
     private void recordAudio() {
         if (ActivityCompat.checkSelfPermission(mContext, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.d(TAG, "AudioRecord permission is not granted");
-            sendUpdate("Permission not granted for recording");
+            sendUpdate(mContext.getString(R.string.need_record_audio_permission));
             return;
         }
-
-        sendUpdate(MSG_RECORDING);
 
         int channels = 1;
         int bytesPerSample = 2;
         int sampleRateInHz = 16000;
         int channelConfig = AudioFormat.CHANNEL_IN_MONO;
         int audioFormat = AudioFormat.ENCODING_PCM_16BIT;
-        int audioSource = MediaRecorder.AudioSource.MIC;
+        int audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION;
 
         int bufferSize = AudioRecord.getMinBufferSize(sampleRateInHz, channelConfig, audioFormat);
+        if (bufferSize < VAD_FRAME_SIZE * 2) bufferSize = VAD_FRAME_SIZE * 2;
         AudioRecord audioRecord = new AudioRecord(audioSource, sampleRateInHz, channelConfig, audioFormat, bufferSize);
         audioRecord.startRecording();
 
         // Calculate maximum byte counts for 30 seconds (for saving)
         int bytesForThirtySeconds = sampleRateInHz * bytesPerSample * channels * 30;
-        int bytesForThreeSeconds = sampleRateInHz * bytesPerSample * channels * 3;
 
-        ByteArrayOutputStream outputBuffer = new ByteArrayOutputStream(); // Buffer for saving data in wave file
-        ByteArrayOutputStream realtimeBuffer = new ByteArrayOutputStream(); // Buffer for real-time processing
+        ByteArrayOutputStream outputBuffer = new ByteArrayOutputStream(); // Buffer for saving data RecordBuffer
 
         byte[] audioData = new byte[bufferSize];
         int totalBytesRead = 0;
 
+        boolean isSpeech;
+        boolean isRecording = false;
+        byte[] vadAudioBuffer = new byte[VAD_FRAME_SIZE * 2];  //VAD needs 16 bit
+
         while (mInProgress.get() && totalBytesRead < bytesForThirtySeconds) {
-            int bytesRead = audioRecord.read(audioData, 0, bufferSize);
+            int bytesRead = audioRecord.read(audioData, 0, VAD_FRAME_SIZE * 2);
             if (bytesRead > 0) {
                 outputBuffer.write(audioData, 0, bytesRead);  // Save all bytes read up to 30 seconds
-                realtimeBuffer.write(audioData, 0, bytesRead); // Accumulate real-time audio data
                 totalBytesRead += bytesRead;
-
-                // Check if realtimeBuffer has more than 3 seconds of data
-                if (realtimeBuffer.size() >= bytesForThreeSeconds) {
-                    float[] samples = convertToFloatArray(ByteBuffer.wrap(realtimeBuffer.toByteArray()));
-                    realtimeBuffer.reset(); // Clear the buffer for the next accumulation
-                    sendData(samples); // Send real-time data for processing
-                }
             } else {
                 Log.d(TAG, "AudioRecord error, bytes read: " + bytesRead);
                 break;
             }
-        }
 
+            if (useVAD){
+                byte[] outputBufferByteArray = outputBuffer.toByteArray();
+                if (outputBufferByteArray.length >= VAD_FRAME_SIZE * 2) {
+                    // Always use the last VAD_FRAME_SIZE * 2 bytes (16 bit) from outputBuffer for VAD
+                    System.arraycopy(outputBufferByteArray, outputBufferByteArray.length - VAD_FRAME_SIZE * 2, vadAudioBuffer, 0, VAD_FRAME_SIZE * 2);
+
+                    isSpeech = vad.isSpeech(vadAudioBuffer);
+                    if (isSpeech) {
+                        if (!isRecording) {
+                            Log.d(TAG, "VAD Speech detected: recording starts");
+                            sendUpdate(MSG_RECORDING);
+                        }
+                        isRecording = true;
+                    } else {
+                        if (isRecording) {
+                            isRecording = false;
+                            mInProgress.set(false);
+                        }
+                    }
+                }
+            } else {
+                if (!isRecording) sendUpdate(MSG_RECORDING);
+                isRecording = true;
+            }
+        }
+        Log.d(TAG, "Total bytes recorded: " + totalBytesRead);
+
+        if (useVAD){
+            useVAD = false;
+            vad.close();
+            vad = null;
+            Log.d(TAG, "Closing VAD");
+        }
         audioRecord.stop();
         audioRecord.release();
 
-        // Save recorded audio data to file (up to 30 seconds)
-        WaveUtil.createWaveFile(mWavFilePath, outputBuffer.toByteArray(), sampleRateInHz, channels, bytesPerSample);
-        sendUpdate(MSG_RECORDING_DONE);
+        // Save recorded audio data to BufferStore (up to 30 seconds)
+        RecordBuffer.setOutputBuffer(outputBuffer.toByteArray());
+        if (totalBytesRead > 6400){  //min 0.2s
+            sendUpdate(MSG_RECORDING_DONE);
+        } else {
+            sendUpdate(MSG_RECORDING_ERROR);
+        }
 
         // Notify the waiting thread that recording is complete
         synchronized (fileSavedLock) {
             fileSavedLock.notify(); // Notify that recording is finished
         }
 
-//        moveFileToSdcard(mWavFilePath);
     }
 
-    private float[] convertToFloatArray(ByteBuffer buffer) {
-        buffer.order(ByteOrder.nativeOrder());
-        float[] samples = new float[buffer.remaining() / 2];
-        for (int i = 0; i < samples.length; i++) {
-            samples[i] = buffer.getShort() / 32768.0f;
-        }
-        return samples;
-    }
-
-    // Move file from /data/user/0/com.whispertflite/files/MicInput.wav to
-    // sdcard path /storage/emulated/0/Android/data/com.whispertflite/files/MicInput.wav
-    // Copy and delete the original file
-    private void moveFileToSdcard(String waveFilePath) {
-        File sourceFile = new File(waveFilePath);
-        File destinationFile = new File(this.mContext.getExternalFilesDir(null), sourceFile.getName());
-        try (FileInputStream inputStream = new FileInputStream(sourceFile);
-             FileOutputStream outputStream = new FileOutputStream(destinationFile)) {
-
-            byte[] buffer = new byte[1024];
-            int length;
-            while ((length = inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer, 0, length);
-            }
-
-            if (sourceFile.delete()) {
-                Log.d("FileMove", "File moved successfully to " + destinationFile.getAbsolutePath());
-            } else {
-                Log.e("FileMove", "Failed to delete the original file.");
-            }
-
-        } catch (IOException e) {
-            Log.e("FileMove", "File move failed", e);
-        }
-    }
 }
