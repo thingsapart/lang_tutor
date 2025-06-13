@@ -2,4 +2,5 @@
     <string name="app_name">Language Tutor</string>
     <string name="welcome_message">Welcome to your new language lesson. Choose your native language, the language you want to learn and a topic… then let us have a conversation!</string>
     <string name="next_button_text">Next</string>
+    <string name="need_record_audio_permission">Missing audio recording Android permission - needed to record the audio to transcribe.</string>
 </resources>

@@ -132,7 +132,7 @@ object ModelManager {
         isMultilingual = true
     )
 
-    val WHISPER_DEFAULT_MODEL = WHISPER_BASE_CIK009_ASR
+    val WHISPER_DEFAULT_MODEL = WHISPER_BASE_ASR
 
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (CPU)",
