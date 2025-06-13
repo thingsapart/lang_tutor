@@ -134,6 +134,82 @@ object ModelManager {
 
     val WHISPER_DEFAULT_MODEL = WHISPER_BASE_ASR
 
+    val PHI_4_MINI_IT_CPU = LlmModelConfig(
+        modelName = "Phi-4 Mini Instruct (CPU)",
+        internalModelId = "Phi-4-mini-instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv1280.task",
+        licenseUrl = "https://huggingface.co/microsoft/Phi-4-mini-instruct",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
+    )
+
+    val PHI_4_MINI_IT_GPU = LlmModelConfig(
+        modelName = "Phi-4 Mini Instruct (CPU)",
+        internalModelId = "Phi-4-mini-instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv1280.task",
+        licenseUrl = "https://huggingface.co/microsoft/Phi-4-mini-instruct",
+        needsAuth = false,
+        preferredBackend = ModelBackend.GPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
+    )
+
+    val PHI_3_5_MINI_IT_CPU = LlmModelConfig(
+        modelName = "Phi-4 Mini Instruct (CPU)",
+        internalModelId = "Phi-3_5-mini-instruct_q8_seq1024_ekv1280.task",
+        url = "https://huggingface.co/lokinfey/Phi-3.5-instruct-tflite/resolve/main/cpu_mobile_device/phi3.task",
+        licenseUrl = "https://huggingface.co/microsoft/Phi-4-mini-instruct",
+        needsAuth = false,
+        preferredBackend = ModelBackend.CPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
+    )
+
+    val PHI_3_5_MINI_IT_GPU = LlmModelConfig(
+        modelName = "Phi-4 Mini Instruct (CPU)",
+        internalModelId = "Phi-3_5-mini-instruct_q8_seq1024_ekv1280.task",
+        url = "https://huggingface.co/lokinfey/Phi-3.5-instruct-tflite/resolve/main/cpu_mobile_device/phi3.task",
+        licenseUrl = "https://huggingface.co/microsoft/Phi-4-mini-instruct",
+        needsAuth = false,
+        preferredBackend = ModelBackend.GPU,
+        llmBackend = LlmBackend.MEDIA_PIPE,
+        thinkingIndicator = false,
+        temperature = 0.7f,
+        topK = 20,
+        topP = 0.8f,
+        maxTokens = 2048,
+        padTokenId = 0,
+        bosTokenId = null,
+        eosTokenId = null,
+        vocabFileNameInMetadata = "vocab.txt"
+    )
+
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (CPU)",
         internalModelId = "Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
@@ -268,10 +344,14 @@ object ModelManager {
         vocabFileNameInMetadata = ""
     )
 
-    val DEFAULT_MODEL = QWEN_2_5_1_5_B_IT_CPU // Default model
+    val DEFAULT_MODEL = PHI_4_MINI_IT_GPU // Default model
 
     fun getAllModels(): List<LlmModelConfig> {
         return listOf(
+            PHI_3_5_MINI_IT_CPU,
+            PHI_3_5_MINI_IT_GPU,
+            PHI_4_MINI_IT_CPU,
+            PHI_4_MINI_IT_GPU,
             QWEN_2_5_500M_IT_CPU,
             QWEN_2_5_500M_IT_GPU,
             QWEN_2_5_1_5_B_IT_CPU,
