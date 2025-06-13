@@ -79,10 +79,10 @@ public class WhisperUtil {
 
         // @magic:USEN
         int magic = vocabBuf.getInt();
-        if (magic == 0x5553454e) {
+        if (magic == 0x5553454e || magic == 0x74666c74) {
             Log.d(TAG, "Magic number: " + magic);
         } else {
-            Log.d(TAG, "Invalid vocab file (bad magic: " + magic + "), " + vocabPath);
+            Log.d(TAG, "Invalid vocab file (bad magic: 0x" + java.lang.Integer.toHexString(magic) + "), " + vocabPath);
             return false;
         }
 

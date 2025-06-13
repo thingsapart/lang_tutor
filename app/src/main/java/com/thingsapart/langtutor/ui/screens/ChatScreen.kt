@@ -173,7 +173,7 @@ fun ChatScreen(
 
     // Check for ASR model and vocab existence and initiate download if needed
     LaunchedEffect(Unit) {
-        val asrConfig = ModelManager.WHISPER_BASE_ASR
+        val asrConfig = ModelManager.WHISPER_DEFAULT_MODEL
         val modelFileExists = ModelManager.checkAsrModelExists(context, asrConfig)
         val vocabFileExists = asrConfig.vocabUrl?.let { ModelManager.checkAsrVocabExists(context, asrConfig) } ?: true // Vocab exists if no vocabUrl
 
@@ -243,8 +243,8 @@ fun ChatScreen(
     LaunchedEffect(hasRecordAudioPermission, asrComponentsReady) { // Changed asrModelExists to asrComponentsReady
         if (hasRecordAudioPermission && asrComponentsReady) {
             if (audioHandler == null) {
-                val modelPath = ModelManager.getLocalAsrModelPath(context, ModelManager.WHISPER_BASE_ASR)
-                val asrConfig = ModelManager.WHISPER_BASE_ASR
+                val modelPath = ModelManager.getLocalAsrModelPath(context, ModelManager.WHISPER_DEFAULT_MODEL)
+                val asrConfig = ModelManager.WHISPER_DEFAULT_MODEL
 
                 // Determine the vocabulary path to pass
                 val finalVocabPath = if (asrConfig.vocabUrl != null && asrConfig.vocabFileName != null) {
@@ -259,7 +259,7 @@ fun ChatScreen(
                     context = context,
                     modelPath = modelPath,
                     vocabPath = finalVocabPath,
-                    isMultilingual = ModelManager.WHISPER_BASE_ASR.isMultilingual,
+                    isMultilingual = ModelManager.WHISPER_DEFAULT_MODEL.isMultilingual,
                     onTranscriptionUpdate = { transcription ->
                         inputText = transcription
                     },
@@ -532,7 +532,7 @@ fun ChatScreen(
                         onClick = {
                             requestAudioPermission()
                             if (hasRecordAudioPermission) {
-                                val asrModelExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)
+                                val asrModelExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_DEFAULT_MODEL)
                                 if (audioHandler != null && asrModelExists) {
                                     isRecording = !isRecording
                                     if (isRecording) {
@@ -546,7 +546,7 @@ fun ChatScreen(
                                     }
                                 } else {
                                     Log.w("ChatScreen", "AudioHandler not ready or ASR model missing.")
-                                    Toast.makeText(context, "ASR system not ready. Model downloaded? ${ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_BASE_ASR)}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "ASR system not ready. Model downloaded? ${ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_DEFAULT_MODEL)}", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
                                 Log.d("ChatScreen", "Mic clicked, permission pending/denied. Request was launched.")

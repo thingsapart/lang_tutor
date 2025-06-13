@@ -104,23 +104,35 @@ object ModelManager {
     // Whisper Models for TFlite.
     //
     // https://huggingface.co/DocWolle/whisper_tflite_models/tree/main
-    val WHISPER_BASE1_ASR = AsrModelConfig(
+    val WHISPER_BASE_EN_ASR = AsrModelConfig(
         modelName = "Whisper Base ASR",
         internalModelId = "whisper-base.tflite",
-        url = "https://huggingface.co/cik009/whisper/resolve/main/whisper-base.tflite",
-        vocabUrl = "https://huggingface.co/cik009/whisper/resolve/main/filters_vocab_multilingual.bin",
-        vocabFileName = "filters_vocab_multilingual.bin",
+        url = "https://huggingface.co/cik009/whisper/resolve/main/whisper-base.en.tflite",
+        vocabUrl = "https://huggingface.co/cik009/whisper/resolve/main/filters_vocab_en.bin",
+        vocabFileName = "filters_vocab_en.bin",
         isMultilingual = true
     )
 
     val WHISPER_BASE_ASR = AsrModelConfig(
         modelName = "Whisper Base ASR",
-        internalModelId = "whisper-base.tflite",
+        internalModelId = "whisper-base-transcribe.tflite",
         url = "https://huggingface.co/DocWolle/whisper_tflite_models/resolve/main/whisper-base-transcribe-translate.tflite",
         vocabUrl = "https://huggingface.co/DocWolle/whisper_tflite_models/resolve/main/filters_vocab_multilingual.bin",
         vocabFileName = "filters_vocab_multilingual_translate.bin",
         isMultilingual = true
     )
+
+    // https://huggingface.co/cik009/whisper/tree/main
+    val WHISPER_BASE_CIK009_ASR = AsrModelConfig(
+        modelName = "Whisper Base ASR",
+        internalModelId = "whisper-base-cik009.tflite",
+        url = "https://huggingface.co/cik009/whisper/resolve/main/whisper-base.en.tflite",
+        vocabUrl = "https://huggingface.co/cik009/whisper/resolve/main/filters_vocab_en.bin",
+        vocabFileName = "filters_vocab_en_2_cik009.bin",
+        isMultilingual = true
+    )
+
+    val WHISPER_DEFAULT_MODEL = WHISPER_BASE_CIK009_ASR
 
     val QWEN_2_5_500M_IT_CPU = LlmModelConfig(
         modelName = "Qwen2.5 0.5B Instruct (CPU)",
