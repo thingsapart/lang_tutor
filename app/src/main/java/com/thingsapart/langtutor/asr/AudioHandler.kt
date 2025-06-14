@@ -214,19 +214,8 @@ class AudioHandler(
                         Log.d(TAG, "Recording done, starting Whisper processing.")
                         startWhisperProcessing() // Method in AudioHandler
                         onSpeechActive(false) // Speech ended leading to recording done
-
-                        if (!isManuallyStopping) {
-                            scope.launch {
-                                try {
-                                    Log.d(TAG, "Attempting to restart recorder after VAD-triggered MSG_RECORDING_DONE.")
-                                    recorder.start()
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error trying to restart VAD-triggered recorder: ${e.message}", e)
-                                }
-                            }
-                        } else {
-                            Log.d(TAG, "MSG_RECORDING_DONE received during manual stop, not restarting recorder automatically.")
-                        }
+                        // Automatic restart logic removed. ChatScreen will control restarts.
+                        Log.d(TAG, "MSG_RECORDING_DONE: Automatic recorder restart logic is now removed. ChatScreen controls restarts.")
                     }
                     Recorder.MSG_RECORDING_ERROR -> {
                         Log.e(TAG, "Recorder reported an error.")

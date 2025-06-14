@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.MoreHoriz // Add if not present
 import androidx.compose.material.icons.filled.GraphicEq // Add if not present
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Stop // Import for Stop icon
+import androidx.compose.material.icons.filled.Sync // Add this import
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue // Added
@@ -147,7 +148,8 @@ fun ChatScreen(
     var conversationTitle by remember { mutableStateOf("Chat") }
     var isRecording by remember { mutableStateOf(false) }
     var isSoundBeingDetected by remember { mutableStateOf(false) } // New state
-    var isTranscribing by remember { mutableStateOf(false) }       // New state
+    var isTranscribing by remember { mutableStateOf(false) }       // Existing state
+    var userIntentRecording by remember { mutableStateOf(false) } // New state
 
     var audioHandler by remember { mutableStateOf<AudioHandler?>(null) }
     var asrComponentsReady by remember { mutableStateOf(false) } // Renamed from asrModelExists
@@ -196,6 +198,35 @@ fun ChatScreen(
                 // Optionally, do not clear inputText if send failed, allowing user to see/resend.
             } finally {
                 isLlmGenerating = false
+            }
+        }
+    }
+
+    LaunchedEffect(isLlmGenerating) {
+        if (!isLlmGenerating) { // LLM has just finished generating
+            Log.d("ChatScreen", "LLM finished generating. Checking userIntentRecording: $userIntentRecording")
+            if (userIntentRecording && audioHandler != null && !isRecording) {
+                // If user intended to record, LLM is done, and we are not already recording
+                Log.d("ChatScreen", "LLM finished and userIntentRecording is true. Restarting recording.")
+                isRecording = true // Set UI state to recording
+                inputText = "" // Clear any potentially stale input text from previous turn
+                audioHandler?.startRecording()
+            }
+        } else {
+            // LLM has started generating.
+            // If currently recording (e.g. user spoke, transcription happened, then LLM started),
+            // and if onTranscriptionProcessStateChange didn't already stop it,
+            // this could be another place to ensure mic is off.
+            // However, the primary stop should occur when transcription starts.
+            // This block can be used for logging or specific actions when LLM generation begins.
+            Log.d("ChatScreen", "LLM started generating. isRecording: $isRecording, isTranscribing: $isTranscribing")
+            if (isRecording && !isTranscribing) {
+                // This case implies LLM started, but transcription didn't stop the mic (unlikely with Part B)
+                // Or if user somehow bypasses transcription and directly triggers LLM while mic is on.
+                Log.w("ChatScreen", "LLM started generating, but mic was still on and not in transcribing state. Stopping recording.")
+                audioHandler?.stopRecording()
+                // isRecording will be set to false by onRecordingStopped.
+                // userIntentRecording should still be true if the user was recording.
             }
         }
     }
@@ -356,6 +387,14 @@ fun ChatScreen(
                     onTranscriptionProcessStateChange = { isProcessing ->
                         isTranscribing = isProcessing
                         Log.d("ChatScreen", "onTranscriptionProcessStateChange: isProcessing = $isProcessing")
+                        if (isProcessing && isRecording) {
+                            // Transcription has started from a live recording session
+                            Log.d("ChatScreen", "Transcription started while recording. Stopping audioHandler recording now.")
+                            // We don't set isRecording = false here directly.
+                            // audioHandler.stopRecording() will trigger onRecordingStopped, which sets isRecording = false.
+                            // userIntentRecording remains true because the user didn't manually stop.
+                            audioHandler?.stopRecording()
+                        }
                     }
                 )
             }
@@ -567,32 +606,29 @@ fun ChatScreen(
                     // New Microphone Button
                     IconButton(
                         onClick = {
-                            requestAudioPermission()
+                            requestAudioPermission() // Keep permission check
                             if (hasRecordAudioPermission) {
-                                val asrModelExists = ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_DEFAULT_MODEL)
-                                if (audioHandler != null && asrModelExists) {
-                                    // The isRecording state toggle should be fine as is.
-                                    // If it's currently recording, and we're not transcribing or detecting sound,
-                                    // this click means "stop".
-                                    // If it's not recording, this click means "start".
-                                    // If it is recording and in a special state (transcribing/sound detected),
-                                    // this click should still likely mean "stop".
-                                    val newIsRecording = !isRecording
-                                    if (newIsRecording) {
-                                        // Start recording
-                                        isRecording = true
-                                        inputText = ""
-                                        Log.d("ChatScreen", "Starting recording via AudioHandler.")
-                                        audioHandler?.startRecording()
+                                if (audioHandler != null && asrComponentsReady) {
+                                    if (isRecording || isTranscribing) {
+                                        // If recording OR transcribing, user wants to stop the whole voice interaction flow
+                                        Log.d("ChatScreen", "User action: Stop/Cancel. Was recording: $isRecording, Was transcribing: $isTranscribing")
+                                        userIntentRecording = false // Cancel intent to record further
+                                        if (isRecording) {
+                                            audioHandler?.stopRecording() // Stop active recording if any
+                                        }
+                                        // isRecording will be set to false by onRecordingStopped callback.
+                                        // isTranscribing will be set to false by its own callback when transcription finishes.
                                     } else {
-                                        // Stop recording
-                                        isRecording = false
-                                        Log.d("ChatScreen", "Stopping recording via AudioHandler.")
-                                        audioHandler?.stopRecording()
+                                        // Not recording & not transcribing (mic icon is shown), so user wants to start
+                                        isRecording = true
+                                        userIntentRecording = true
+                                        inputText = ""
+                                        Log.d("ChatScreen", "User action: Starting recording. userIntentRecording = true")
+                                        audioHandler?.startRecording()
                                     }
                                 } else {
                                     Log.w("ChatScreen", "AudioHandler not ready or ASR model missing.")
-                                    Toast.makeText(context, "ASR system not ready. Model downloaded? ${ModelManager.checkAsrModelExists(context, ModelManager.WHISPER_DEFAULT_MODEL)}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "ASR system not ready.", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
                                 Log.d("ChatScreen", "Mic clicked, permission pending/denied. Request was launched.")
@@ -602,12 +638,14 @@ fun ChatScreen(
                         enabled = llmState is LlmServiceState.Ready && !isLlmGenerating && asrComponentsReady
                     ) {
                         val iconImage = when {
+                            isLlmGenerating -> Icons.Filled.Sync // Highest priority: LLM generating
                             isRecording && isTranscribing -> Icons.Filled.MoreHoriz
                             isRecording && isSoundBeingDetected -> Icons.Filled.GraphicEq
                             isRecording -> Icons.Filled.Stop
                             else -> Icons.Filled.Mic
                         }
                         val contentDesc = when {
+                            isLlmGenerating -> "AI is thinking..." // Content description for LLM generating
                             isRecording && isTranscribing -> "Transcribing audio..."
                             isRecording && isSoundBeingDetected -> "Sound detected"
                             isRecording -> "Stop recording"
