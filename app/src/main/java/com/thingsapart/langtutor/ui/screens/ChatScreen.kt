@@ -180,21 +180,21 @@ fun ChatScreen(
     fun sendMessage() {
         // Use llmResponseJob to manage isLlmGenerating
         llmResponseJob = coroutineScope.launch {
+            val originalText = inputText
             try {
                 isLlmGenerating = true
+                inputText = ""
                 chatRepository.sendMessage(
                     currentChatId!!, ChatMessageEntity(
                         conversationId = currentChatId!!,
-                        text = inputText,
+                        text = originalText,
                         timestamp = System.currentTimeMillis(),
                         isUserMessage = true
                     )
                 )
-                // If send is successful, clear inputText so it's not re-sent on next silence.
-                // New speech will only populate inputText after the next manual stop & ASR cycle.
-                inputText = ""
             } catch (e: Exception) {
                 Log.e("ChatScreen", "Error during auto-send on silence: ${e.message}", e)
+                inputText = originalText
                 // Optionally, do not clear inputText if send failed, allowing user to see/resend.
             } finally {
                 isLlmGenerating = false
